@@ -1,14 +1,43 @@
 ---
-title: "Explora_Data_Survey"
-author: "Mauricio Mardones I."
-date: "9/23/2021"
-output: pdf_document
-toc: TRUE
+title: "Data estimates biomass AMLR data"
+subtitle: "Alternative Analysis to incorporate in Krill Stock Assessment Model 48.1 SubArea"
+author: "Mardones, M; Watters, G.; Cárdenas, C."
+date:  "`r format(Sys.time(), '%d %B, %Y')`"
+bibliography: biomass.bib
+csl: apa.csl
+link-citations: yes
+linkcolor: blue
+output:
+  html_document:
+    keep_md: true
+    toc: true
+    toc_deep: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    theme: cosmo
+    fontsize: 0.9em
+    linestretch: 1.7
+    html-math-method: katex
+    self-contained: true
+    code-tools: true
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup1}
+rm(list = ls())
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.align = 'center',
+                      dpi = 300)
+#XQuartz is a mess, put this in your onload to default to cairo instead
+options(bitmapType = "cairo") 
+# (https://github.com/tidyverse/ggplot2/issues/2655)
+# Lo mapas se hacen mas rapido
 ```
 
 
@@ -33,19 +62,25 @@ fig            <-c("pdf","bmp")
 ```
 
 
-# Base de de los survey
+# BACKGROUND
+
+The following document intends to carry out a complementary
+methodological analysis to explore with the
+population dynamics of krill (*Euphausia superba*), in this case, with a
+biological component like lengths from fishery monitoring.
+
+
+# Objective
+
+Once the correlation and effects on the population and/or fishing
+indicators on krill have been verified, this analysis aims to have a
+time series of the environmental variable to incorporate into the stock
+assessment process. Similar work in @Wang2021 but with a longest fishery
+history.
 
 Base de datos provista en WG-EMM-2021/05 Rev. . El codigo es un provisto por Tracey Dorna
 ### Set up document, files and packages
 
-Packages used: 
- 
-    Matt Dowle and Arun Srinivasan (2020). data.table: Extension of `data.frame`. R package version 1.13.4.
-    https://CRAN.R-project.org/package=data.table  
-   
-    Hadley Wickham (2016). ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York.  
-   
-    Yihui Xie (2020). knitr: A General-Purpose Package for Dynamic Report Generation in R. R package version 1.30.   
 
    
 
@@ -64,7 +99,7 @@ mdat <- read.csv("ASAM_metadata_2021_v2_tidy_0.csv")
   3. Inspect individual column contents for unusual formats or notes prior to type conversion
   
 
-### Names of Data:
+### Names of Data
 
 Set names to be more R Friendly 
 
@@ -149,10 +184,10 @@ unique(mdat$Contributor)
 
 ### Subarea codes
  
-Area "48" is the ccamlr 2000 survey
+Area "48" is the ccamlr 2000 survey and strata
 ```{r subareas, include=TRUE}                                
 unique(mdat$Subarea) # Area "48" is the ccamlr 2000 survey
-
+unique(mdat$Stratum_name)
 ```
 
 ### CV method
@@ -288,12 +323,12 @@ unique(mdat$Density_gm2)
 mdat$Density_gm2<- as.double(mdat$Density_gm2)
 h <- ggplot(mdat, aes(x=as.double(Density_gm2)))+
   geom_histogram(binwidth=5, show.legend = FALSE, fill=2)+
-  facet_wrap(~Subarea, ncol =3)+
+  facet_wrap(~Stratum_name, ncol =6)+
   theme_bw()
 h
 ```
 
-A plot with density in grs.
+A plot with density in grs. by stratum
 
 
 ```{r densidad by, warning=F, include=T, message=F, echo=FALSE,fig.height=6,fig.width=8,fig.align="center",fig.path=dir.Fig,dev=fig, fig.cap="Densidad by subArea"}
@@ -304,7 +339,7 @@ sc <- ggplot(mdat, aes(x=Year_yyyy, y=as.double(mdat$Density_gm2))) +
         theme_bw()+
         theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9))+
         theme(axis.text.x = element_text(angle = 90, hjust = 2))+
-        facet_wrap(~Subarea, ncol =3)+
+        facet_wrap(~Stratum_name, ncol =6)+
         ggtitle('Density Krill Survey (gr.)')+
         ylim(0,400)+
         xlim(1995,2020)
@@ -312,7 +347,7 @@ sc
 
 ```
  
-#### CV
+### CV
 
 Some CV values are 95% CI range rather than actual CV.
 
@@ -333,3 +368,40 @@ hist(mdat$CV_of_density_Perc, breaks = 100)
 # mdat <- mdat[!CV_of_density_Perc %in% c("95%CI 0-6.42", "95%CI 0.21-11.29")]
 
 ```
+### Stratum names and codes
+
+To ease coding new strata codes were set up for Area 48.1 data under col 'strata'.  
+
+Strata that were assigned a code based on the area they matched best.  
+
+Surveys which overlapped multiple areas were assigned combined codes.
+
+```{r echo=TRUE}
+unique(mdat$Stratum_name)
+```
+
+
+```{r strata_filter, echo=TRUE}
+stra <- mdat %>% 
+mdat <- mdat[Stratum_name %in% c("Elephant Island", "Elephant Island (EL)"), strata :=  "E"
+             ][Stratum_name %in% "Joinville", strata :=  "J"
+               ][Stratum_name %in% c("South", "Bransfield",  "Bransfield Strait (BS)"), strata :=  "S"
+                 ][Stratum_name %in% c("West", "South Shetland Islands North", "South Shetland Island (SSI)") , strata :=  "W"
+                   ][Stratum_name %in% c("ESS", "entire survey area"), strata :=  "WESJ"
+                     ][Stratum_name == "AP", strata:="WE"
+                       ][Stratum_name == "South Shetland Islands", strata :=  "WS"
+                           ][Stratum_name == "SSI", strata:="With_AP_is_WESJ"]
+
+```
+
+
+# REFERENCES
+
+Packages used: 
+ 
+    Matt Dowle and Arun Srinivasan (2020). data.table: Extension of `data.frame`. R package version 1.13.4.
+    https://CRAN.R-project.org/package=data.table  
+   
+    Hadley Wickham (2016). ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York.  
+   
+    Yihui Xie (2020). knitr: A General-Purpose Package for Dynamic Report Generation in R. R package version 1.30.   

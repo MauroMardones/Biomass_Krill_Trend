@@ -53,7 +53,7 @@ file name =  "ASAM_metadata_2021_v2_tidy.csv"
 
 
 ````{r}
-filepath <- "~/DOCAS/Data/Explora_Data_Krill"
+filepath <- "~/DOCAS/Data/Biomass_Krill_Trend"
 mdat <- read.csv("ASAM_metadata_2021_v2_tidy_0.csv")
 
 ```
@@ -161,8 +161,8 @@ unique(mdat$Subarea) # Area "48" is the ccamlr 2000 survey
 ```{r include=TRUE}
 den48 <- mdat %>% 
   group_by(Year_yyyy, Subarea) %>% 
-  summarise(denmean=(mean(as.double(Density_gm2)))) %>% 
-  summarise(cvdenmean=(mean(as.double(CV_of_density_Perc))))
+  summarize(denmean=(mean(as.double(Density_gm2)))) %>% 
+  summarize(cvdenmean=(mean(as.double(CV_of_density_Perc))))
 kable(den481) 
 write.csv(den48, "Dens_ASAM.csv", sep=";")
 
@@ -194,9 +194,9 @@ A note has been added to the "Note" column indicating that "CV calculated as the
 
  **Data where CV calculated as the S.E/Mean x 100% for each stratum or entire survey area**
  
-```{r cv 95 CIs, include=TRUE}
+```{r cv 95 CIs}
 # INSPECT and add to ASAM_NOTES column
-kable(mdat[mdat$CV_method=="Here, the CV were simply calculated as the S.E/Mean x 100% for each stratum or entire survey area", c(1:8, 10)])
+knitr::kable(mdat[mdat$CV_method=="Here, the CV were simply calculated as the S.E/Mean x 100% for each stratum or entire survey area", c(1:8, 10)])
 
 
 # Add this note to ASAM_NOTES column (savea a backup of the full data)
@@ -224,7 +224,7 @@ unique(mdat$TS_model)
 
 #### Depth range integrated
 
-```{r dint, include=TRUE}
+```{r dint, include=FALSE}
 unique(mdat$Depth_range_integrated_m)
 
 ```
@@ -372,11 +372,11 @@ mdat$CV_of_density_Perc <- as.double(mdat$CV_of_density_Perc)
 hist(mdat$CV_of_density_Perc, breaks = 100)
 
 
-knitr::kable(mdat[CV_of_density_Perc=="95%CI 0-6.42"|CV_of_density_Perc=="95%CI 0.21-11.29", 1:10])
+knitr::kable(mdat[mdat$CV_of_density_Perc=="95%CI 0-6.42"|mdat$CV_of_density_Perc=="95%CI 0.21-11.29", 1:10])
 
 # The above do not have CV values we can work with so removing them from analysis
-remdat <- rbind(remdat,  mdat[CV_of_density_Perc %in% c("95%CI 0-6.42", "95%CI 0.21-11.29")])
-mdat <- mdat[!CV_of_density_Perc %in% c("95%CI 0-6.42", "95%CI 0.21-11.29")]
+remdat <- rbind(remdat,  mdat[mdat$CV_of_density_Perc %in% c("95%CI 0-6.42", "95%CI 0.21-11.29")])
+mdat <- mdat[!mdat$CV_of_density_Perc %in% c("95%CI 0-6.42", "95%CI 0.21-11.29")]
 
 
 ```
@@ -394,12 +394,12 @@ Rows without Areas associated are removed from analysis (stored in remdat).
 unique(mdat$Survey_area_km2)
 
 # some data sets do not have areas associated with them so I cannot apply corrected CV to them
-NoAreaTable <- mdat[Survey_area_km2 %in% c("")] # the "0" is the 2019 synoptic so retaining in the main data set
+NoAreaTable <- mdat[mdat$Survey_area_km2 %in% c("")] # the "0" is the 2019 synoptic so retaining in the main data set
 
 knitr::kable(NoAreaTable[, c(1:8,10)], caption = "No area available in Metadata - Required for CV!")
 
 # Adding to the removed data table
-remdat <-  rbind(remdat,  mdat[Survey_area_km2 %in% c("")])
+remdat <-  rbind(remdat,  mdat[mdat$Survey_area_km2 %in% c("")])
 
 mdat <- mdat[!Survey_area_km2 %in% c("")]
 
