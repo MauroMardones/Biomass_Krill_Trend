@@ -66,27 +66,20 @@ fig            <-c("pdf","bmp")
 
 The following document intends to carry out a complementary
 methodological analysis to explore with the
-population dynamics of krill (*Euphausia superba*), in this case, with a
-biological component like lengths from fishery monitoring.
+population dynamics of krill (*Euphausia superba*), in this case, with a index of biommass based in AMLR Program Survey with both standarized and calibrated data.
 
 
-# Objective
+# OBJECTIVE
 
 Once the correlation and effects on the population and/or fishing
 indicators on krill have been verified, this analysis aims to have a
 time series of the environmental variable to incorporate into the stock
-assessment process. Similar work in @Wang2021 but with a longest fishery
-history.
-
-Base de datos provista en WG-EMM-2021/05 Rev. . El codigo es un provisto por Tracey Dorna
-### Set up document, files and packages
+assessment process. Similar work in @Wang2021 but with a longest fishery history.
 
 
-   
+# METODOLOGY
 
-  
-
-### Read in data 
+### Read data and code provided by  WG-EMM-2021/05 Rev.
 
 ````{r}
 mdat <- read.csv("ASAM_metadata_2021_v2_tidy_0.csv")
@@ -331,7 +324,7 @@ h
 A plot with density in grs. by stratum
 
 
-```{r densidad by, warning=F, include=T, message=F, echo=FALSE,fig.height=6,fig.width=8,fig.align="center",fig.path=dir.Fig,dev=fig, fig.cap="Densidad by subArea"}
+```{r densidad byor, warning=FALSE}
 sc <- ggplot(mdat, aes(x=Year_yyyy, y=as.double(mdat$Density_gm2))) + 
         geom_point() +
         geom_smooth(method = "loess", colour='red', fill='red', alpha=.3)+
@@ -382,17 +375,46 @@ unique(mdat$Stratum_name)
 
 
 ```{r strata_filter, echo=TRUE}
-stra <- mdat %>% 
-mdat <- mdat[Stratum_name %in% c("Elephant Island", "Elephant Island (EL)"), strata :=  "E"
-             ][Stratum_name %in% "Joinville", strata :=  "J"
-               ][Stratum_name %in% c("South", "Bransfield",  "Bransfield Strait (BS)"), strata :=  "S"
-                 ][Stratum_name %in% c("West", "South Shetland Islands North", "South Shetland Island (SSI)") , strata :=  "W"
-                   ][Stratum_name %in% c("ESS", "entire survey area"), strata :=  "WESJ"
-                     ][Stratum_name == "AP", strata:="WE"
-                       ][Stratum_name == "South Shetland Islands", strata :=  "WS"
-                           ][Stratum_name == "SSI", strata:="With_AP_is_WESJ"]
+
+mdat$strata[mdat$Stratum_name%in%c("Elephant Island", "Elephant Island (EL)")] <- "E"    
+mdat$strata[mdat$Stratum_name%in%c("Joinville")] <- "J"    
+mdat$strata[mdat$Stratum_name%in%c("South", "Bransfield",  "Bransfield Strait (BS)")] <- "S"    
+mdat$strata[mdat$Stratum_name%in%c("West", "South Shetland Islands North", "South Shetland Island (SSI)")] <- "W"   
+mdat$strata[mdat$Stratum_name%in%c("ESS", "entire survey area")] <- "WESJ"   
+mdat$strata[mdat$Stratum_name%in%c("AP")] <- "WE"   
+mdat$strata[mdat$Stratum_name%in%c("South Shetland Islands")] <- "WS"   
+mdat$strata[mdat$Stratum_name%in%c("SSI")] <- "With_AP_is_WESJ"   
+table(mdat$strata)
+# test NA Data
+colSums(is.na(mdat))
+```
+```{r densidad by strata, warning=F}
+destra <- ggplot(mdat , 
+                 aes(x=Year_yyyy, 
+                     y=as.double(mdat$Density_gm2),
+                     color=TS_Id_Method)) +
+  geom_point() +
+  geom_smooth(method = "loess", colour='red', fill='red', alpha=.3)+
+  scale_x_continuous(breaks = seq(from = 190, to = 2020, by = 4))+
+  scale_color_viridis_d(option = "F")+
+  theme_bw()+
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9))+
+  facet_wrap(~strata, ncol =4)+
+  ggtitle('Density Krill Survey (gr.)')+
+  ylim(0,200)+
+  xlim(1990,2021)
+
+
+destra
 
 ```
+Load Biomass depured data
+
+```{r}
+bioma <- read_csv("krill_biomass_acoustic_survey.csv")
+names(bioma)
+```
+
 
 
 # REFERENCES
