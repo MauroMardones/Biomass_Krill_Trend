@@ -1,0 +1,335 @@
+---
+title: "Explora_Data_Survey"
+author: "Mauricio Mardones I."
+date: "9/23/2021"
+output: pdf_document
+toc: TRUE
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r lib, warning=F, message=F, error=F}
+library(GGally)
+library(tidyverse, quietly = TRUE)
+library(patchwork)
+library(marmap)
+library(ggplot2)
+library(raster)
+library(dbplyr)
+library(knitr)
+library(data.table)
+```
+
+
+```{r data2}
+# Genero una carpeta en donde alojar figuras
+dir.Fig        <-"Figuras/"
+fig            <-c("pdf","bmp")
+```
+
+
+# Base de de los survey
+
+Base de datos provista en WG-EMM-2021/05 Rev. . El codigo es un provisto por Tracey Dorna
+### Set up document, files and packages
+
+Packages used: 
+ 
+    Matt Dowle and Arun Srinivasan (2020). data.table: Extension of `data.frame`. R package version 1.13.4.
+    https://CRAN.R-project.org/package=data.table  
+   
+    Hadley Wickham (2016). ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York.  
+   
+    Yihui Xie (2020). knitr: A General-Purpose Package for Dynamic Report Generation in R. R package version 1.30.   
+
+   
+
+  
+
+### Read in data 
+
+````{r}
+mdat <- read.csv("ASAM_metadata_2021_v2_tidy_0.csv")
+```
+
+### Tidy and inspect file structure
+
+  1. Checking structure (most data is currently character type)
+  2. Renaming columns to be R friendly
+  3. Inspect individual column contents for unusual formats or notes prior to type conversion
+  
+
+### Names of Data:
+
+Set names to be more R Friendly 
+
+```{r data inspection, include=TRUE}
+#names(mdat)
+# print table of metadata column names and R coding names
+knitr::kable(as.data.frame(cbind(`Metadata Table Names`=names(mdat), 
+                    `R Names`=c("Year_yyyy",
+                      "Month_MON",
+                      "Vessel",
+                      "Contributor",
+                      "Subarea",
+                      "Survey_name",
+                      "Density_gm2",
+                      "CV_of_density_Perc",
+                      "CV_method",
+                      "Survey_area_km2",
+                      "Echosounder",
+                      "Freq_for_biomass_est_kHz",
+                      "Frequencies_avail",
+                      "TS_Id_Method",
+                      "dB_diff_window",
+                      "TS_model",
+                      "Depth_range_integrated_m",
+                      "Time_sampled",
+                      "Stratum_name",
+                      "Survey_design_description", 
+                      "Reference", 
+                      "Note", 
+                      "empty1", 
+                      "sourceexl",
+                      "Net", 
+                      "Towdesign", 
+                      "ASAM_NOTES"))))
+
+#rename columns to be code friendly
+setnames(mdat, names(mdat), c("Year_yyyy",
+                              "Month_MON",
+                              "Vessel",
+                              "Contributor",
+                              "Subarea",
+                              "Survey_name",
+                              "Density_gm2",
+                              "CV_of_density_Perc",
+                              "CV_method",
+                              "Survey_area_km2",
+                              "Echosounder",
+                              "Freq_for_biomass_est_kHz",
+                              "Frequencies_avail",
+                              "TS_Id_Method",
+                              "dB_diff_window",
+                              "TS_model",
+                              "Depth_range_integrated_m",
+                              "Time_sampled",
+                              "Stratum_name",
+                              "Survey_design_description", 
+                              "Reference", 
+                              "Note", 
+                              "empty1", 
+                              "sourceexl",
+                              "Net", 
+                              "Towdesign", 
+                              "ASAM_NOTES"))
+
+```
+
+### Years & Months available:
+
+```{r yrs, include=TRUE}
+sort(unique(mdat$Year_yyyy))
+
+unique(mdat$Month_MON) 
+
+```
+
+### Vessels and contributors
+
+```{r VnCs, include=TRUE}
+unique(mdat$Vessel)
+unique(mdat$Contributor)   
+```
+
+### Subarea codes
+ 
+Area "48" is the ccamlr 2000 survey
+```{r subareas, include=TRUE}                                
+unique(mdat$Subarea) # Area "48" is the ccamlr 2000 survey
+
+```
+
+### CV method
+
+
+```{r cvmeths, include=TRUE}
+unique(mdat$CV_method) 
+```
+  
+There is an unusual entry of CV method:
+
+  "Here, the CV were simply calculated as the S.E/Mean x 100% for each stratum or entire survey area"
+  
+A note has been added to the "Note" column indicating that "CV calculated as the S.E/Mean x 100% for each stratum or entire survey area"  
+
+
+ **Data where CV calculated as the S.E/Mean x 100% for each stratum or entire survey area**
+ 
+```{r cv 95 CIs, include=TRUE}
+# INSPECT and add to ASAM_NOTES column
+knitr::kable(mdat[mdat$CV_method=="Here, the CV were simply calculated as the S.E/Mean x 100% for each stratum or entire survey area", c(1:8, 10)])
+```
+
+### Echosounder used:
+
+```{r echos, include=TRUE}
+unique(mdat$Echosounder)
+
+```
+
+### Frequency used for biomass estimation, TS method and TS model
+
+```{r Freq TSs, include=TRUE}
+unique(mdat$Freq_for_biomass_est_kHz)
+unique(mdat$TS_Id_Method)
+unique(mdat$TS_model)
+
+```
+
+### Depth range integrated
+
+```{r dint, include=TRUE}
+unique(mdat$Depth_range_integrated_m)
+
+```
+
+### Time of samples
+
+```{r times, include=TRUE}
+unique(mdat$Time_sampled) # ? should we consolidate "daylight only" to be "day"
+
+```
+
+### Stratum names and codes
+
+To ease coding new strata codes were set up for Area 48.1 data under col 'strata'.  
+
+Strata that were assigned a code based on the area they matched best.  
+
+Surveys which overlapped multiple areas were assigned combined codes.
+
+```{r strata_filter, echo=TRUE}
+unique(mdat$Stratum_name)
+```
+
+### Survey design
+
+```{r survey desc, include=TRUE}
+
+unique(mdat$Survey_design_description)
+
+```
+
+### Notes/Comments
+
+```{r note, include=TRUE}
+unique(mdat$Note)
+unique(mdat$empty1)
+unique(mdat$ASAM_NOTES)
+
+#mdat[mdat$ASAM_NOTES=="", mdat$ASAM_NOTES=="NA"] # getting rid of empty ""
+
+```
+
+### Survey details
+
+Tow design. 
+Nets.
+Source exl. 
+
+```{r details, include=TRUE}
+
+unique(mdat$Towdesign)
+
+unique(mdat$Net)
+
+unique(mdat$sourceexl)
+```
+
+
+### Remove Duplicate and Bad data
+
+As analysis requires Density CV and Area for weighted density calculations:
+ 
+  1.	Remove rows which do not have complete records for ‘Density’ and/or ‘CV’ 
+  2.	Remove anything with a comment in the ‘ASAM_NOTES’ because this was either
+    a.	the same AMLR data but run with the Greene algorithm so DUPLICATED 
+    b.	incomplete/the area wasn’t covered properly so difficult to weight appropriately
+
+**Removed data is being saved in a table named remdat**
+
+```{r remove dup}
+
+# Retain a data.table with data removed
+#remdat <- mdat[is.na(mdat$ASAM_NOTES)]
+
+# Remove duplicated or other data with comments in ASAM_NOTES
+#mdat <- mdat[is.na(mdat$ASAM_NOTES)]
+
+```
+ 
+### Density 
+
+Miramos los datos de densidades
+
+
+```{r inspect dens, include=TRUE}
+unique(mdat$Density_gm2)
+```
+
+
+```{r hdba, warning=F, include=T, message=F, echo=FALSE,fig.height=7,fig.width=9,fig.align="center",fig.path=dir.Fig,dev=fig, fig.cap="Histo Dens by Area"}
+mdat$Density_gm2<- as.double(mdat$Density_gm2)
+h <- ggplot(mdat, aes(x=as.double(Density_gm2)))+
+  geom_histogram(binwidth=5, show.legend = FALSE, fill=2)+
+  facet_wrap(~Subarea, ncol =3)+
+  theme_bw()
+h
+```
+
+A plot with density in grs.
+
+
+```{r densidad by, warning=F, include=T, message=F, echo=FALSE,fig.height=6,fig.width=8,fig.align="center",fig.path=dir.Fig,dev=fig, fig.cap="Densidad by subArea"}
+sc <- ggplot(mdat, aes(x=Year_yyyy, y=as.double(mdat$Density_gm2))) + 
+        geom_point() +
+        geom_smooth(method = "loess", colour='red', fill='red', alpha=.3)+
+        scale_x_continuous(breaks = seq(from = 190, to = 2019, by = 4))+
+        theme_bw()+
+        theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9))+
+        theme(axis.text.x = element_text(angle = 90, hjust = 2))+
+        facet_wrap(~Subarea, ncol =3)+
+        ggtitle('Density Krill Survey (gr.)')+
+        ylim(0,400)+
+        xlim(1995,2020)
+sc
+
+```
+ 
+#### CV
+
+Some CV values are 95% CI range rather than actual CV.
+
+Remove from analysis data set (store in remdat).
+
+```{r inspect CV, include=TRUE}
+
+unique(mdat$CV_of_density_Perc)
+
+mdat$CV_of_density_Perc <- as.double(mdat$CV_of_density_Perc)
+hist(mdat$CV_of_density_Perc, breaks = 100)
+
+# 
+# knitr::kable(mdat[CV_of_density_Perc=="95%CI 0-6.42"|CV_of_density_Perc=="95%CI 0.21-11.29", 1:10])
+# 
+# # The above do not have CV values we can work with so removing them from analysis
+# remdat <- rbind(remdat,  mdat[CV_of_density_Perc %in% c("95%CI 0-6.42", "95%CI 0.21-11.29")])
+# mdat <- mdat[!CV_of_density_Perc %in% c("95%CI 0-6.42", "95%CI 0.21-11.29")]
+
+```

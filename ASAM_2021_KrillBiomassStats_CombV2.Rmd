@@ -1,0 +1,1425 @@
+---
+title: "ASAM Metadata 2021 Krill Biomass Estimate"
+author: "Tracey Dornan"
+date: "11/06/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, include = FALSE)
+
+library(data.table)
+library(knitr, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(kableExtra)
+
+
+                  # load it
+example(data.table)                   # run the examples section of ?data.table
+?data.table                           # read
+?fread                                # read
+update.packages()      
+
+```
+
+
+## Set up document, files and packages
+
+Packages used: 
+ 
+    Matt Dowle and Arun Srinivasan (2020). data.table: Extension of `data.frame`. R package version 1.13.4.
+    https://CRAN.R-project.org/package=data.table  
+   
+    Hadley Wickham (2016). ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York.  
+   
+    Yihui Xie (2020). knitr: A General-Purpose Package for Dynamic Report Generation in R. R package version 1.30.   
+
+   
+This script reads in **ASAM_metadata_2021_v2_tidy.csv** - This is the same as ASAM-metadata_2021_V2 spreadsheet but 
+
+  a) ‘notes’ that were on otherwise empty rows have been moved into the 'notes' or newly named  ‘ASAM_NOTES’ column on the row that the comment relates to  
+
+  b) empty rows area then deleted
+  
+
+#### Read in data 
+
+Set filepath using "filepath <-"  
+
+file name =  "ASAM_metadata_2021_v2_tidy.csv"  
+
+
+
+````{r}
+filepath <- "~/DOCAS/Data/Explora_Data_Krill"
+mdat <- read.csv("ASAM_metadata_2021_v2_tidy_0.csv")
+
+```
+
+## Tidy and inspect file structure
+
+  1. Checking structure (most data is currently character type)
+  2. Renaming columns to be R friendly
+  3. Inspect individual column contents for unusual formats or notes prior to type conversion
+  
+#### Names of Data:
+
+Set names to be more R Friendly 
+
+```{r data inspection, include=TRUE}
+#names(mdat)
+# print table of metadata column names and R coding names
+knitr::kable(as.data.frame(cbind(`Metadata Table Names`=names(mdat), 
+                    `R Names`=c("Year_yyyy",
+                      "Month_MON",
+                      "Vessel",
+                      "Contributor",
+                      "Subarea",
+                      "Survey_name",
+                      "Density_gm2",
+                      "CV_of_density_Perc",
+                      "CV_method",
+                      "Survey_area_km2",
+                      "Echosounder",
+                      "Freq_for_biomass_est_kHz",
+                      "Frequencies_avail",
+                      "TS_Id_Method",
+                      "dB_diff_window",
+                      "TS_model",
+                      "Depth_range_integrated_m",
+                      "Time_sampled",
+                      "Stratum_name",
+                      "Survey_design_description", 
+                      "Reference", 
+                      "Note", 
+                      "empty1", 
+                      "sourceexl",
+                      "Net", 
+                      "Towdesign", 
+                      "ASAM_NOTES"))))
+
+#rename columns to be code friendly
+setnames(mdat, names(mdat), c("Year_yyyy",
+                              "Month_MON",
+                              "Vessel",
+                              "Contributor",
+                              "Subarea",
+                              "Survey_name",
+                              "Density_gm2",
+                              "CV_of_density_Perc",
+                              "CV_method",
+                              "Survey_area_km2",
+                              "Echosounder",
+                              "Freq_for_biomass_est_kHz",
+                              "Frequencies_avail",
+                              "TS_Id_Method",
+                              "dB_diff_window",
+                              "TS_model",
+                              "Depth_range_integrated_m",
+                              "Time_sampled",
+                              "Stratum_name",
+                              "Survey_design_description", 
+                              "Reference", 
+                              "Note", 
+                              "empty1", 
+                              "sourceexl",
+                              "Net", 
+                              "Towdesign", 
+                              "ASAM_NOTES"))
+
+```
+
+#### Years & Months available:
+
+```{r yrs, include=TRUE}
+sort(unique(mdat$Year_yyyy))
+
+unique(mdat$Month_MON) 
+
+```
+
+#### Vessels and contributors
+
+```{r VnCs, include=TRUE}
+unique(mdat$Vessel)
+unique(mdat$Contributor)   
+```
+
+#### Subarea codes
+ 
+Area "48" is the ccamlr 2000 survey
+```{r subareas, include=TRUE}                                
+unique(mdat$Subarea) # Area "48" is the ccamlr 2000 survey
+
+```
+
+# Saco Densidades y cv por SUbArea
+
+
+```{r include=TRUE}
+den48 <- mdat %>% 
+  group_by(Year_yyyy, Subarea) %>% 
+  summarise(denmean=(mean(as.double(Density_gm2)))) %>% 
+  summarise(cvdenmean=(mean(as.double(CV_of_density_Perc))))
+kable(den481) 
+write.csv(den48, "Dens_ASAM.csv", sep=";")
+
+#ahora el cv
+
+cv48 <- mdat %>% 
+  group_by(Year_yyyy, Subarea) %>% 
+  summarise(cvdenmean=(mean(as.double(CV_of_density_Perc))))
+kable(cv48) 
+write.csv(cv48, "CV_Dens_ASAM.csv", sep=";")
+ 
+```
+
+
+
+#### CV method
+
+
+```{r cvmeths, include=TRUE}
+unique(mdat$CV_method) 
+```
+  
+There is an unusual entry of CV method:
+
+  "Here, the CV were simply calculated as the S.E/Mean x 100% for each stratum or entire survey area"
+  
+A note has been added to the "Note" column indicating that "CV calculated as the S.E/Mean x 100% for each stratum or entire survey area"  
+
+
+ **Data where CV calculated as the S.E/Mean x 100% for each stratum or entire survey area**
+ 
+```{r cv 95 CIs, include=TRUE}
+# INSPECT and add to ASAM_NOTES column
+kable(mdat[mdat$CV_method=="Here, the CV were simply calculated as the S.E/Mean x 100% for each stratum or entire survey area", c(1:8, 10)])
+
+
+# Add this note to ASAM_NOTES column (savea a backup of the full data)
+tmpdt <- mdat[mdat$CV_method=="Here, the CV were simply calculated as the S.E/Mean x 100% for each stratum or entire survey area",
+              Note:= "CV calculated as the S.E/Mean x 100% for each stratum or entire survey area"]
+mdat <- tmpdt #  saving a copy of the original data for comparison
+
+```
+
+#### Echosounder used:
+
+```{r echos, include=TRUE}
+unique(mdat$Echosounder)
+
+```
+
+#### Frequency used for biomass estimation, TS method and TS model
+
+```{r Freq TSs, include=TRUE}
+unique(mdat$Freq_for_biomass_est_kHz)
+unique(mdat$TS_Id_Method)
+unique(mdat$TS_model)
+
+```
+
+#### Depth range integrated
+
+```{r dint, include=TRUE}
+unique(mdat$Depth_range_integrated_m)
+
+```
+
+#### Time of samples
+
+```{r times, include=TRUE}
+unique(mdat$Time_sampled) # ? should we consolidate "daylight only" to be "day"
+
+```
+
+#### Stratum names and codes
+
+To ease coding new strata codes were set up for Area 48.1 data under col 'strata'.  
+
+Strata that were assigned a code based on the area they matched best.  
+
+Surveys which overlapped multiple areas were assigned combined codes.
+
+```{r strata_filter, echo=TRUE}
+
+unique(mdat$Stratum_name)
+
+stra <- mdat %>% 
+  
+
+
+mdat <- mdat[Stratum_name %in% c("Elephant Island", "Elephant Island (EL)"), strata :=  "E"
+             ][Stratum_name %in% "Joinville", strata :=  "J"
+               ][Stratum_name %in% c("South", "Bransfield",  "Bransfield Strait (BS)"), strata :=  "S"
+                 ][Stratum_name %in% c("West", "South Shetland Islands North", "South Shetland Island (SSI)") , strata :=  "W"
+                   ][Stratum_name %in% c("ESS", "entire survey area"), strata :=  "WESJ"
+                     ][Stratum_name == "AP", strata:="WE"
+                       ][Stratum_name == "South Shetland Islands", strata :=  "WS"
+                           ][Stratum_name == "SSI", strata:="With_AP_is_WESJ"]
+
+```
+
+
+#### Survey design
+
+```{r survey desc, include=TRUE}
+
+unique(mdat$Survey_design_description)
+
+```
+
+#### Notes/Comments
+
+```{r note, include=TRUE}
+unique(mdat$Note)
+unique(mdat$empty1)
+unique(mdat$ASAM_NOTES)
+
+mdat[mdat$ASAM_NOTES=="", mdat$ASAM_NOTES=="NA"] # getting rid of empty ""
+
+```
+
+#### Survey details
+
+Tow design. 
+Nets.
+Source exl. 
+
+```{r details, include=TRUE}
+
+unique(mdat$Towdesign)
+
+unique(mdat$Net)
+
+unique(mdat$sourceexl)
+```
+
+
+## Remove Duplicate and Bad data
+
+As analysis requires Density CV and Area for weighted density calculations:
+ 
+  1.	Remove rows which do not have complete records for ‘Density’ and/or ‘CV’ 
+  2.	Remove anything with a comment in the ‘ASAM_NOTES’ because this was either
+    a.	the same AMLR data but run with the Greene algorithm so DUPLICATED 
+    b.	incomplete/the area wasn’t covered properly so difficult to weight appropriately
+
+**Removed data is being saved in a table named remdat**
+
+```{r remove dup}
+
+# Retain a data.table with data removed
+remdat <- mdat[!is.na(mdat$ASAM_NOTES)]
+
+# Remove duplicated or other data with comments in ASAM_NOTES
+mdat <- mdat[is.na(mdat$ASAM_NOTES)]
+
+
+```
+ 
+## Before converting column classes, check numeric columns look numeric and do some plots
+
+#### Density 
+ 
+
+```{r inspect dens, include=TRUE}
+unique(mdat$Density_gm2)
+
+mdat$Density_gm2<- as.double(mdat$Density_gm2)
+summary(mdat$Density_gm2)
+
+h <- ggplot(mdat, aes(x=as.double(Density_gm2)))+
+  geom_histogram(binwidth=5, show.legend = FALSE, fill=2)+
+  facet_wrap(~Subarea, ncol =3)+
+  theme_bw()
+h
+```
+
+A plot with density in grs.
+
+
+```{r inspect dens 2, include=TRUE}
+sc <- ggplot(mdat, aes(x=Year_yyyy, y=as.double(mdat$Density_gm2))) + 
+        geom_point() +
+        geom_smooth(method = "loess", colour='blue', fill='blue', alpha=.3)+
+        scale_x_continuous(breaks = seq(from = 190, to = 2019, by = 4))+
+        theme_bw()+
+        theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9))+
+        theme(axis.text.x = element_text(angle = 90, hjust = 2))+
+        facet_wrap(~Subarea, ncol =3)+
+        ggtitle('Density Krill Survey (gr.)')+
+        ylim(0,750)+
+        xlim(1995,2020)
+sc
+
+```
+ 
+#### CV
+
+Some CV values are 95% CI range rather than actual CV.
+
+Remove from analysis data set (store in remdat).
+
+```{r inspect CV, include=TRUE}
+
+unique(mdat$CV_of_density_Perc)
+
+mdat$CV_of_density_Perc <- as.double(mdat$CV_of_density_Perc)
+hist(mdat$CV_of_density_Perc, breaks = 100)
+
+
+knitr::kable(mdat[CV_of_density_Perc=="95%CI 0-6.42"|CV_of_density_Perc=="95%CI 0.21-11.29", 1:10])
+
+# The above do not have CV values we can work with so removing them from analysis
+remdat <- rbind(remdat,  mdat[CV_of_density_Perc %in% c("95%CI 0-6.42", "95%CI 0.21-11.29")])
+mdat <- mdat[!CV_of_density_Perc %in% c("95%CI 0-6.42", "95%CI 0.21-11.29")]
+
+
+```
+
+### Area 
+
+Some data sets do not have an area associated with them. See table below.
+
+Area is required for weighting and calculating CV of combined metadata.
+
+Rows without Areas associated are removed from analysis (stored in remdat). 
+
+```{r inspect area, include=TRUE}
+
+unique(mdat$Survey_area_km2)
+
+# some data sets do not have areas associated with them so I cannot apply corrected CV to them
+NoAreaTable <- mdat[Survey_area_km2 %in% c("")] # the "0" is the 2019 synoptic so retaining in the main data set
+
+knitr::kable(NoAreaTable[, c(1:8,10)], caption = "No area available in Metadata - Required for CV!")
+
+# Adding to the removed data table
+remdat <-  rbind(remdat,  mdat[Survey_area_km2 %in% c("")])
+
+mdat <- mdat[!Survey_area_km2 %in% c("")]
+
+```
+
+
+#### Summary of data cleaning:
+
+This cleaning process has removed `r nrow(remdat)` data entries from an original `r nrow(tmpdt)`.
+
+`r nrow(remdat[ASAM_NOTES=="Same surveys as above, but done with Greene model"])` of these were duplicated AMLR studies using the Greene method.
+
+Other data either had incomplete records for Density, CV and or Area or reduced coverage.
+
+##### Data removed: 
+
+`r knitr::kable(remdat[, c(1, 4:8, 10, 27, 28)])`
+
+
+## Format data classes
+
+Density, CV and Survey area all assigned numeric
+
+Stratum_name, Subarea, strata - assigned as factor
+
+```{r format column classes, echo=FALSE}
+# Assign numeric classes
+mdat <- mdat[, Density_gm2 := as.numeric(Density_gm2)][, CV_of_density_Perc:=as.numeric(CV_of_density_Perc)][ , Survey_area_km2 := as.numeric(Survey_area_km2)]
+
+# Assign factors
+mdat <- mdat[, Stratum_name := as.factor(Stratum_name)][, Subarea := as.factor(Subarea)][, strata := as.factor(strata)] #Stratum_name
+
+```
+
+### Save reduced data set to file
+
+`r fwrite(mdat, paste0(filepath, "ASAM_metadata_2021_v3_reduced.csv"))`
+
+`r fwrite(remdat, paste0(filepath, "ASAM_metadata_2021_v3_REMOVED.csv"))`
+
+"ASAM_metadata_2021_v3_reduced.csv" = retained  
+"ASAM_metadata_2021_v3_REMOVED.csv" = removed  
+
+
+
+# Krill biomass estimates from ASAM 2021 metadata
+
+This Rmarkdown scripts works with a reduced version of the ASAM 2021 metadata spreadsheet, generated by code above.  In summary, the original metadata spreadsheet was:  
+ 
+ 1. formatted to be R friendly
+ 2. cleaned of duplicated data
+ 3. cleaned of data with missing values of Density, CV or Area required in calculations
+ 
+ 
+This script works with the data in *"ASAM_metadata_2021_v3_reduced.csv"*. Some plots of data for all area sampled are produced before restricting data to area 48.1 only. 
+ 
+
+```{r reload data}
+
+# commented out as script can be run as one or run just from here
+
+#filepath <- filepath
+
+#mdat <- fread(paste0(filepath, "ASAM_metadata_2021_v3_reduced.csv"))
+
+unique(mdat$Subarea)
+
+```
+
+## Prepare data for plottng
+
+```{r plot set up}
+
+# create a timeStamp for plotting
+mdat <- mdat[, timeStamp := zoo::as.yearmon(paste(Month_MON,Year_yyyy),format='%b %Y')]
+# set all Multi month samples (2019 Synoptic and Atlantida) and 'Jan' of the survey year for plotting only
+mdat <- mdat[is.na(timeStamp), timeStamp := zoo::as.yearmon(paste('Jan',Year_yyyy),format='%b %Y')] 
+
+# remove rows with 'blank Density or CV
+mdat <- mdat[!is.na(Density_gm2)][!is.na(CV_of_density_Perc)]
+
+# standard deviation of rho
+mdat <- mdat[, SD_Density := (Density_gm2*(CV_of_density_Perc/100))]
+# variance of rho (SD)^2
+mdat <- mdat[, Var_Density := (Density_gm2*(CV_of_density_Perc/100))^2]
+
+
+# 95% confidence assuming normal distribution:  
+mdat$LB=qnorm(p=0.025,mean=mdat$Density_gm2,sd=mdat$SD)
+mdat$UB=qnorm(p=0.975,mean=mdat$Density_gm2,sd=mdat$SD)
+
+mdat[, monF := factor(Month_MON, levels=month.abb)]
+mdat[, subareaF := factor(Subarea, levels=c("48.1", "48.1/48.2", "48.2", "48.2, 48.3", "48.3", "48.4", "48", "88.1"))]
+
+# code subarea "48.1/48.2" as 48.1 - Atlantida - Elephant iSland
+mdat <- mdat[subareaF=="48.1/48.2", subareaF :="48.1"]
+
+```
+
+# Data Summary 
+
+
+```{r subAreaByNation, include=TRUE}
+knitr::kable(table(mdat$Subarea,mdat$Contributor), caption='Area by contributor')
+```
+\newpage
+## Time series plots
+
+Number of surveys for each year by subarea
+
+```{r sampleSize, out.width="100%", fig.cap='Number of surveys carried outduring each year by subarea.', include=TRUE}
+
+sampSize <- mdat[ , .(n=.N),
+                      by=c("subareaF","Year_yyyy")]
+knitr::kable(sampSize)
+
+psize=ggplot(data=sampSize,aes(x=Year_yyyy,
+                               y=n,
+                               group=subareaF)) +
+  geom_point() + facet_wrap(~subareaF,ncol=1) +
+  theme_minimal() + xlab('Year') + 
+  ylab('Number of surveys')
+
+#psize=cowplot::ggdraw(psize) + 
+#  cowplot::draw_label("Draft", color = "grey", size = 110, angle = 45,alpha=0.5)
+print(psize)
+```
+\newpage  
+**NOTE: Areas labeled with "48.2, 48.3" and "48" are not plotted below to ease visualisation**  
+
+```{r basePlot, out.width="100%", include=TRUE}
+p1=ggplot(mdat[subareaF %in% c("48.1", "48.2", "48.3", "48.4"  ) ], aes (x=timeStamp,
+                     y=Density_gm2,
+                     group=subareaF,colour=subareaF,
+                     shape=TS_Id_Method)) + 
+  geom_point(alpha=0.8) + 
+ xlab('Year') +
+  theme_minimal() + 
+  facet_wrap(~subareaF,ncol=2) +
+  ylab(bquote('Areal krill biomass density, '~gm^-2)) + 
+   labs(colours='Subarea') 
+
+print(p1)
+```
+
+  
+  
+```{r individualbasePlot, out.width="100%", include=FALSE}
+suba <- unique(mdat$subareaF)
+
+for (i in 1:length(suba)) {
+  tsub <- suba[i]
+  tmpp=ggplot(mdat[subareaF==tsub], aes (x=timeStamp,
+                     y=Density_gm2,
+                     group=subareaF,colour=subareaF,
+                     shape=TS_Id_Method)) + 
+  geom_point(alpha=0.8) + 
+ xlab('Year') +
+  theme_minimal() + 
+  #facet_wrap(~subareaF,ncol=2) +
+  ylab(bquote('Areal krill biomass density, '~gm^-2)) + 
+   labs(colours='Subarea',
+        title=paste0("Subarea ",tsub)) 
+
+print(tmpp)
+  
+}
+
+#max(mdat$Density_gm2)
+#max(mdat$UB)
+#min(mdat$LB)
+```
+
+
+```{r normCI, out.width="100%", include=TRUE}
+
+pNCI=p1+geom_errorbar(aes(x=timeStamp,ymin=LB,ymax=UB,colour=subareaF,group=subareaF),alpha=0.8) +
+  #geom_ribbon(aes(x=timeStamp,ymin=LB,ymax=UB,colour=SubareaF,group=SubareaF,fill=SubareaF),alpha=0.2)  +
+  geom_hline(yintercept=0,colour='grey') +  coord_cartesian(ylim=c(-50,850)) + NULL #ylim(c(0,260)) 
+#pNCI=cowplot::ggdraw(pNCI) + 
+#  cowplot::draw_label("Draft", color = "grey", size = 110, angle = 45,alpha=0.5)
+print(pNCI)
+```
+\newpage  
+  
+# Focus on Area 48.1
+
+```{r Area_48.1, include=TRUE}
+
+dt <- mdat[Subarea %in% c("48.1", "48.1/48.2")]
+
+
+# este lo asigne yo
+
+dt1 <- mdat %>% 
+  filter(Subarea %in% c("48.1", "48.1/48.2"))
+
+```
+ 
+
+### Years & Months available for 48.1 data:
+
+```{r yrs48.1, include=TRUE}
+sort(unique(dt$Year_yyyy))
+
+dt$Month_MON <- factor(dt$Month_MON)
+
+print(levels(dt$Month_MON) )
+```
+
+\newpage  
+### Strata available  
+
+```{r strata_table, include=TRUE}
+# make a table summarising number of surveys available for each strata
+knitr::kable(dt[, .(Number_surveys= as.character(.N),
+                    strata_code=unique(strata),
+                    Min_Area = round(min(Survey_area_km2)),
+                    Max_Area = round(max(Survey_area_km2)),
+                    Mean_Area =  round(mean(Survey_area_km2))),
+                    by=Stratum_name
+                ])
+```
+
+\newpage 
+
+## Area 48.1 Strata plots
+
+```{r area48.1 plots, out.width="100%", include=TRUE}
+
+p481=ggplot(dt, aes (x=timeStamp,
+                     y=Density_gm2,
+                     group=strata,colour=TS_Id_Method,
+                     shape=TS_Id_Method)) + 
+  geom_point(alpha=0.8) + 
+  xlab('Year') +
+  theme_minimal() + 
+  facet_wrap(~strata,ncol=2) +
+  ylab(bquote('Areal krill biomass density, '~gm^-2)) + 
+  labs(colours='Strata') 
+
+print(p481)
+
+suba <- c( "E" ,"W", "S", "J")
+
+for (i in 1:length(suba)) {
+  tsub <- suba[i]
+  tmpp=ggplot(dt[strata==tsub], aes (x=timeStamp,
+                     y=Density_gm2,
+                     group=strata,colour=TS_Id_Method,
+                     shape=TS_Id_Method)) + 
+  geom_point(alpha=0.8) + 
+ xlab('Year') +
+  theme_minimal() + 
+  #facet_wrap(~strata,ncol=2) +
+  ylab(bquote('Areal krill biomass density, '~gm^-2)) + 
+   labs(colours='strata',
+        title=paste0("Strata ",tsub)) 
+
+print(tmpp)
+  
+}
+```
+
+\newpage
+# Biomass calculations
+
+### Strategy
+
+The data will be assessed sequentially starting at the smallest strata combining all data within each of "E", "W", "S", "J" . 
+ 
+Then combining all data with "WE" codes and finally combining all in the large scale full area "WESJ".
+
+**NOTE: the 2019 synoptic survey was aggregated over "Dec,Jan,Feb,Mar" & data available broadly spans months of Dec-Mar.** 
+
+ April is represented by a single 2018 survey carried out on *Polarstern*. In addition the CV were simply calculated as the S.E/Mean x 100% for each stratum or entire survey area,  which covered: 
+ * South Shetland Islands North - W
+ * Elephant Island - E
+ * Bransfield - S
+ * Joinville - J
+ * entire survey area - WESJ
+ 
+ 
+ August data was all collected by the *Nathaniel B. Palmer* in `r unique(dt[Vessel=="Nathaniel B. Palmer"]$Year_yyyy)`
+
+ 
+**Given the available data, summary stats are initially being calculated for the combined months of "December, January, February and March" data only.**
+
+
+
+### Methodology
+
+**1) identify the various surveys that will be included in computing an average**  
+  
+**2) compute weighted mean density using the survey areas as weights**
+
+
+  * TotalArea <- sum(Survey_area_km2)  
+  
+  * AreaWeighting := Survey_area_km2/TotalArea  
+  
+  * Mean_Wt_Density_gm2 <- weighted.mean(x =Density_gm2, w = AreaWeighting)  
+  
+
+
+since CVs are reported in the metadata spreadsheet these need to be converted to variances for use in the next step as  
+variance of survey density = (reported CV * reported density)^2^
+
+  - Var_Density := (Density_gm2 * (CV_of_density_Perc / 100) )^2
+
+
+**3) compute the variance of the weighted mean density using equation 3 in Jolly and Hampton (1990)**
+
+![ ](images/JH1990_Eq3.png)
+
+  * JH_Numerator := (Survey_area_km2^2 * Var_Density)  
+  * Var_WtMeanDensity <- (sum(tmpdt$JH_Numerator)) / (TotalArea)^2
+    
+**4) CV = sqrt of variance from step 3 / mean from step 2**  
+  
+  * CV <- (sqrt(Var_WtMeanDensity) / Mean_Wt_Density_gm2)*100  
+    
+    
+**5) compute extrapolated biomass estimate as mean from step 2 * area to which extrapolation applies** 
+
+(in Tonnes Per Square Kilometer (t/km2))
+
+  * biomass_extra <- Mean_Wt_Density_gm2 * Area_of_Extrapolation  
+  
+  
+**6) compute variance of estimate from step 5 as variance from step 3 * (area to which extrapolation applies)^2^**  
+  
+  * var_biomass_extra <- Var_WtMeanDensity *(Area_of_Extrapolation^2)
+  
+**7) CV = sqrt of variance from step 6 / biomass estimate from step 5**  
+  
+  * CV_of_TotalBiomass <- (sqrt(var_biomass_extra) / biomass_extra)*100
+
+
+Notes:
+•	Steps 2-3 of this pseudocode can be applied to multiple surveys within a single stratum, surveys that cover multiple strata, or any combination of both.
+•	Steps 3 and 6 aren't necessary but the results of those two should be equal and provide a nice double-check that everything is working OK.
+•	For those interested in application to the Grym later on - the outcome from Step 7 (or Step 4) might yield a useful estimate of the parameter "B0logSD," where B0logSD = sqrt(log(1+CV^2))
+
+  
+```{r filter codes, echo=FALSE}
+
+#set up factors
+cols <- c("Vessel", "Contributor", "Subarea", "CV_method", "TS_model", "Time_sampled", "strata")
+
+dt[,(cols) := lapply(.SD, as.factor), .SDcols = cols] 
+
+Dec_Mar <-c("Dec", "Dec,Jan,Feb,Mar", "Feb", "Jan", "Jan,Feb", "Mar") # "Apr", "Aug"
+all_months <- c("Dec", "Dec,Jan,Feb,Mar", "Feb", "Jan", "Jan,Feb", "Mar", "Apr", "Aug")
+
+
+years_available <- sort(unique(dt$Year_yyyy), decreasing = TRUE)
+
+y3 <- years_available[1:3]
+
+y5 <- years_available[1:5]
+
+y5107 <- c(2020,2019,2018,2016,2015,2014,2013,2012,2011,2010,2009)
+
+yall <- years_available
+
+# set up year groups for loop
+yr_scenario <- list(y3=y3, y5=y5, y5107=y5107, yall=yall)
+
+# working with only December to March data
+dt2 <- dt[Month_MON %in% Dec_Mar]
+```
+
+\newpage
+### Strata Areas for extrapolation  
+  
+  Strata areas are the maximum area recorded in the metadata from each of the strata.  
+    
+  AMLR areas are smaller than maximum Strata area, and the areas AMLR traditionally  used to survey.
+    
+  48.1 area is 640583 km^2^ as taken from Table 1. WG-ASAM-21/14
+  
+  **PLEASE NOTE: I do not have WG-ASAM-21/14 so if someone can check that this is copied correctly that would be excellent!**
+  
+```{r Areas from Table 1 of WG-ASAM-21/14, include=TRUE} 
+# from the metadata table extract the Max Area for each of the strata surveyed
+AreaExtra <- dt[, .(n=.N,
+                    Strata_Area = round(max(Survey_area_km2))),
+                by=strata]
+AreaExtra <- rbind(AreaExtra, as.data.table(cbind(strata= "CCAMLR_48_1", n=NA, Strata_Area=640583))) # source Table 1 of WG-ASAM-21/14
+AreaExtra <- AreaExtra[strata=="E", AMLR_Area := 43865
+                       ][strata=="W", AMLR_Area :=38524
+                         ][strata=="S", AMLR_Area :=24479
+                           ][strata=="J", AMLR_Area :=18151
+                             ][, n := as.numeric(n)
+                               ][, Strata_Area := as.numeric(Strata_Area)]
+
+knitr::kable(AreaExtra)
+
+```
+
+
+**Step 1 - working by area**  
+
+**Year codes**
+    
+    y3 =  2020 2019 2018
+
+    y5 = 2020 2019 2018 2016 2015
+
+    y5107 = 2020 2019 2018 2016 2015 2014 2013 2012 2011 2010 2009
+
+    yall = All available =  2020 2019 2018 2016 2015 2014 2013 2012 2011 2010 2009 2008 2007 2006 2005 2004 2003 2002 2001 2000 1999 1998 1997 1996
+ 
+\newpage
+### Joinville  
+ 
+ Years available: `r unique(dt[strata=="J"]$Year_yyyy)` 
+ 
+ Mean Joinville survey area from all data in analysis: `r format(round(mean(dt[strata=="J"]$Survey_area_km2), digits=0), scientific=F)`km^2^ for extrapolation
+ 
+```{r table set up}
+# make a table to take all the final data
+FinalTable <- NULL
+```
+
+
+```{r joinville, echo=FALSE, include=TRUE}
+
+st_name <- "Joinville"
+st_name
+
+# strata area is being calculated as the AMLR areas as these are 
+Area_of_Extrapolation_StrataMax <- AreaExtra[strata =="J"]$Strata_Area
+Area_of_Extrapolation_AMLR <- AreaExtra[strata =="J"]$AMLR_Area
+
+subdt <- dt2[strata=="J" ]
+
+# make an empty table to take the temporary stats from the subarea
+subdtsum <- NULL
+
+for(i in 1:length(yr_scenario)){
+  tmpyr <- yr_scenario[[i]]
+  yrcode <- names(yr_scenario[i])
+  tmpdt <- subdt[Year_yyyy %in% tmpyr]
+  
+  # STEP 2) compute weighted mean density using the survey areas as weights
+  
+  TotalArea <- sum(tmpdt$Survey_area_km2)
+  
+  tmpdt <- tmpdt[, AreaWeighting := Survey_area_km2/TotalArea]
+  
+  Mean_Wt_Density_gm2 <- weighted.mean(x = tmpdt$Density_gm2, w = tmpdt$AreaWeighting)
+  
+  # Calculate Variance of survey density - this was calculated earlier in the code so commented out
+  
+ #tmpdt <- tmpdt[, Var_Density := (Density_gm2*(CV_of_density_Perc/100))^2]
+ 
+ 
+ # STEP 3) compute the variance of the weighted mean density using equation 3 in Jolly and Hampton (1990)
+ 
+ tmpdt <- tmpdt[, JH_Numerator := (Survey_area_km2^2 * Var_Density)]
+ 
+ Var_WtMeanDensity <- (sum(tmpdt$JH_Numerator)) / (TotalArea)^2
+ 
+# STEP 4) CV = sqrt of variance from step 3 / mean from step 2
+
+ CV_Mean_Wt_Density <- (sqrt(Var_WtMeanDensity) / Mean_Wt_Density_gm2)*100
+ 
+ # STEP 5) compute extrapolated biomass estimate as mean from step 2 * area to which extrapolation applies
+ 
+ biomass_extra_StrataMax <- Mean_Wt_Density_gm2 * Area_of_Extrapolation_StrataMax
+ biomass_extra_AMLR <- Mean_Wt_Density_gm2 * Area_of_Extrapolation_AMLR
+ 
+ # STEP 6) compute variance of estimate from step 5 as variance from step 3 * (area to which extrapolation applies)^2
+ 
+ var_biomass_extra_StrataMax <- Var_WtMeanDensity *(Area_of_Extrapolation_StrataMax^2)
+ var_biomass_extra_AMLR <- Var_WtMeanDensity *(Area_of_Extrapolation_AMLR^2)
+
+ # STEP 7) CV_of_TotalBiomass = sqrt of variance from step 6 / biomass estimate from step 5
+ 
+ `CV Strata Biomass %` <- (sqrt(var_biomass_extra_StrataMax) / biomass_extra_StrataMax)*100
+ `CV AMLR Biomass %` <- (sqrt(var_biomass_extra_AMLR) / biomass_extra_AMLR)*100
+ 
+ tmpstats <- as.data.frame(cbind(Strata= st_name, 
+                                 N = nrow(tmpdt), 
+                                 `Density gm2` = round(Mean_Wt_Density_gm2, digits=2),
+                                 `Var Wt Density` = round(Var_WtMeanDensity, digits=2),
+                                 `CV Wt Density %` = round(CV_Mean_Wt_Density, digits=2),
+                                 
+                                 `Strata Area` = round(Area_of_Extrapolation_StrataMax, digits=0),
+                                 `Strata Biomass T km-2` = round(biomass_extra_StrataMax, digits = 0),
+                                 `CV Strata Biomass %` = round(`CV Strata Biomass %`, digits=2),
+                                 
+                                 `Strata Area AMLR` = round(Area_of_Extrapolation_AMLR, digits=0),
+                                 `AMLR Biomass T km-2` = round(biomass_extra_AMLR, digits = 0),
+                                 `CV AMLR Biomass %` = round(`CV AMLR Biomass %`, digits=2),
+                                 Years_included = yrcode))
+ 
+ subdtsum <- rbind(subdtsum, tmpstats)
+ 
+ }
+
+
+FinalTable <- rbind(FinalTable, subdtsum)
+
+kable(subdtsum) 
+```
+
+ 
+### Elephant  
+ 
+ Years available: `r unique(dt[strata=="E"]$Year_yyyy)` 
+ 
+ Mean Elephant survey area from all data in analysis: `r format(round(mean(dt[strata=="E"]$Survey_area_km2), digits=0), scientific=F)`km^2^
+
+```{r Elephant, echo=FALSE, include=TRUE}
+
+st_name <- "Elephant"
+
+
+# strata area is being calculated as the AMLR areas as these are 
+Area_of_Extrapolation_StrataMax <- AreaExtra[strata =="E"]$Strata_Area
+Area_of_Extrapolation_AMLR <- AreaExtra[strata =="E"]$AMLR_Area
+
+subdt <- dt2[strata=="E" ]
+
+subdtsum <- NULL
+
+for(i in 1:length(yr_scenario)){
+  tmpyr <- yr_scenario[[i]]
+  yrcode <- names(yr_scenario[i])
+  tmpdt <- subdt[Year_yyyy %in% tmpyr]
+  
+  # STEP 2) compute weighted mean density using the survey areas as weights
+  
+  TotalArea <- sum(tmpdt$Survey_area_km2)
+  
+  tmpdt <- tmpdt[, AreaWeighting := Survey_area_km2/TotalArea]
+  
+  Mean_Wt_Density_gm2 <- weighted.mean(x = tmpdt$Density_gm2, w = tmpdt$AreaWeighting)
+  
+  # Calculate Variance of survey density - this was calculated earlier in the code so commented out
+  
+ #tmpdt <- tmpdt[, Var_Density := (Density_gm2*(CV_of_density_Perc/100))^2]
+ 
+ 
+ # STEP 3) compute the variance of the weighted mean density using equation 3 in Jolly and Hampton (1990)
+ 
+ tmpdt <- tmpdt[, JH_Numerator := (Survey_area_km2^2 * Var_Density)]
+ 
+ Var_WtMeanDensity <- (sum(tmpdt$JH_Numerator)) / (TotalArea)^2
+ 
+# STEP 4) CV = sqrt of variance from step 3 / mean from step 2
+
+ CV_Mean_Wt_Density <- (sqrt(Var_WtMeanDensity) / Mean_Wt_Density_gm2)*100
+ 
+ # STEP 5) compute extrapolated biomass estimate as mean from step 2 * area to which extrapolation applies
+ 
+ biomass_extra_StrataMax <- Mean_Wt_Density_gm2 * Area_of_Extrapolation_StrataMax
+ biomass_extra_AMLR <- Mean_Wt_Density_gm2 * Area_of_Extrapolation_AMLR
+ 
+ # STEP 6) compute variance of estimate from step 5 as variance from step 3 * (area to which extrapolation applies)^2
+ 
+ var_biomass_extra_StrataMax <- Var_WtMeanDensity *(Area_of_Extrapolation_StrataMax^2)
+ var_biomass_extra_AMLR <- Var_WtMeanDensity *(Area_of_Extrapolation_AMLR^2)
+
+ # STEP 7) CV_of_TotalBiomass = sqrt of variance from step 6 / biomass estimate from step 5
+ 
+ `CV Strata Biomass %` <- (sqrt(var_biomass_extra_StrataMax) / biomass_extra_StrataMax)*100
+ `CV AMLR Biomass %` <- (sqrt(var_biomass_extra_AMLR) / biomass_extra_AMLR)*100
+ 
+ tmpstats <- as.data.frame(cbind(Strata= st_name, 
+                                 N = nrow(tmpdt), 
+                                 `Density gm2` = round(Mean_Wt_Density_gm2, digits=2),
+                                 `Var Wt Density` = round(Var_WtMeanDensity, digits=2),
+                                 `CV Wt Density %` = round(CV_Mean_Wt_Density, digits=2),
+                                 
+                                 `Strata Area` = round(Area_of_Extrapolation_StrataMax, digits=0),
+                                 `Strata Biomass T km-2` = round(biomass_extra_StrataMax, digits = 0),
+                                 `CV Strata Biomass %` = round(`CV Strata Biomass %`, digits=2),
+                                 
+                                 `Strata Area AMLR` = round(Area_of_Extrapolation_AMLR, digits=0),
+                                 `AMLR Biomass T km-2` = round(biomass_extra_AMLR, digits = 0),
+                                 `CV AMLR Biomass %` = round(`CV AMLR Biomass %`, digits=2),
+                                 Years_included = yrcode))
+ 
+ subdtsum <- rbind(subdtsum, tmpstats)
+ 
+ }
+
+FinalTable <- rbind(FinalTable, subdtsum)
+
+kable(subdtsum) 
+```
+
+
+### Bransfield  
+ 
+ Years available: `r unique(dt[strata=="S"]$Year_yyyy)` 
+ 
+ Mean Bransfield survey area from all data in analysis: `r format(round(mean(dt[strata=="S"]$Survey_area_km2), digits=0), scientific=F)`km^2^
+
+```{r Bransfield, echo=FALSE, include=TRUE}
+
+st_name <- "Bransfield"
+
+# strata area is being calculated as the AMLR areas as these are 
+Area_of_Extrapolation_StrataMax <- AreaExtra[strata =="S"]$Strata_Area
+Area_of_Extrapolation_AMLR <- AreaExtra[strata =="S"]$AMLR_Area
+
+subdt <- dt2[strata=="S" ]
+
+subdtsum <- NULL
+
+for(i in 1:length(yr_scenario)){
+  tmpyr <- yr_scenario[[i]]
+  yrcode <- names(yr_scenario[i])
+  tmpdt <- subdt[Year_yyyy %in% tmpyr]
+  
+  # STEP 2) compute weighted mean density using the survey areas as weights
+  
+  TotalArea <- sum(tmpdt$Survey_area_km2)
+  
+  tmpdt <- tmpdt[, AreaWeighting := Survey_area_km2/TotalArea]
+  
+  Mean_Wt_Density_gm2 <- weighted.mean(x = tmpdt$Density_gm2, w = tmpdt$AreaWeighting)
+  
+  # Calculate Variance of survey density - this was calculated earlier in the code so commented out
+  
+ #tmpdt <- tmpdt[, Var_Density := (Density_gm2*(CV_of_density_Perc/100))^2]
+ 
+ 
+ # STEP 3) compute the variance of the weighted mean density using equation 3 in Jolly and Hampton (1990)
+ 
+ tmpdt <- tmpdt[, JH_Numerator := (Survey_area_km2^2 * Var_Density)]
+ 
+ Var_WtMeanDensity <- (sum(tmpdt$JH_Numerator)) / (TotalArea)^2
+ 
+# STEP 4) CV = sqrt of variance from step 3 / mean from step 2
+
+ CV_Mean_Wt_Density <- (sqrt(Var_WtMeanDensity) / Mean_Wt_Density_gm2)*100
+ 
+ # STEP 5) compute extrapolated biomass estimate as mean from step 2 * area to which extrapolation applies
+ 
+ biomass_extra_StrataMax <- Mean_Wt_Density_gm2 * Area_of_Extrapolation_StrataMax
+ biomass_extra_AMLR <- Mean_Wt_Density_gm2 * Area_of_Extrapolation_AMLR
+ 
+ # STEP 6) compute variance of estimate from step 5 as variance from step 3 * (area to which extrapolation applies)^2
+ 
+ var_biomass_extra_StrataMax <- Var_WtMeanDensity *(Area_of_Extrapolation_StrataMax^2)
+ var_biomass_extra_AMLR <- Var_WtMeanDensity *(Area_of_Extrapolation_AMLR^2)
+
+ # STEP 7) CV_of_TotalBiomass = sqrt of variance from step 6 / biomass estimate from step 5
+ 
+ `CV Strata Biomass %` <- (sqrt(var_biomass_extra_StrataMax) / biomass_extra_StrataMax)*100
+ `CV AMLR Biomass %` <- (sqrt(var_biomass_extra_AMLR) / biomass_extra_AMLR)*100
+ 
+ tmpstats <- as.data.frame(cbind(Strata= st_name, 
+                                 N = nrow(tmpdt), 
+                                 `Density gm2` = round(Mean_Wt_Density_gm2, digits=2),
+                                 `Var Wt Density` = round(Var_WtMeanDensity, digits=2),
+                                 `CV Wt Density %` = round(CV_Mean_Wt_Density, digits=2),
+                                 
+                                 `Strata Area` = round(Area_of_Extrapolation_StrataMax, digits=0),
+                                 `Strata Biomass T km-2` = round(biomass_extra_StrataMax, digits = 0),
+                                 `CV Strata Biomass %` = round(`CV Strata Biomass %`, digits=2),
+                                 
+                                 `Strata Area AMLR` = round(Area_of_Extrapolation_AMLR, digits=0),
+                                 `AMLR Biomass T km-2` = round(biomass_extra_AMLR, digits = 0),
+                                 `CV AMLR Biomass %` = round(`CV AMLR Biomass %`, digits=2),
+                                 Years_included = yrcode))
+ 
+ subdtsum <- rbind(subdtsum, tmpstats)
+ 
+ }
+
+FinalTable <- rbind(FinalTable, subdtsum)
+
+kable(subdtsum)  
+```
+
+
+
+### West  
+ 
+ Years available: `r unique(dt[strata=="W"]$Year_yyyy)` 
+ 
+ Mean West survey area from all data in analysis: `r format(round(mean(dt[strata=="W"]$Survey_area_km2), digits=0), scientific=F)`km^2^ 
+
+```{r West, echo=FALSE, include=TRUE}
+
+st_name <- "West"
+
+
+# strata area is being calculated as the AMLR areas as these are 
+Area_of_Extrapolation_StrataMax <- AreaExtra[strata =="W"]$Strata_Area
+Area_of_Extrapolation_AMLR <- AreaExtra[strata =="W"]$AMLR_Area
+
+subdt <- dt2[strata=="W" ]
+
+subdtsum <- NULL
+
+for(i in 1:length(yr_scenario)){
+  tmpyr <- yr_scenario[[i]]
+  yrcode <- names(yr_scenario[i])
+  tmpdt <- subdt[Year_yyyy %in% tmpyr]
+  
+  # STEP 2) compute weighted mean density using the survey areas as weights
+  
+  TotalArea <- sum(tmpdt$Survey_area_km2)
+  
+  tmpdt <- tmpdt[, AreaWeighting := Survey_area_km2/TotalArea]
+  
+  Mean_Wt_Density_gm2 <- weighted.mean(x = tmpdt$Density_gm2, w = tmpdt$AreaWeighting)
+  
+  # Calculate Variance of survey density - this was calculated earlier in the code so commented out
+  
+ #tmpdt <- tmpdt[, Var_Density := (Density_gm2*(CV_of_density_Perc/100))^2]
+ 
+ 
+ # STEP 3) compute the variance of the weighted mean density using equation 3 in Jolly and Hampton (1990)
+ 
+ tmpdt <- tmpdt[, JH_Numerator := (Survey_area_km2^2 * Var_Density)]
+ 
+ Var_WtMeanDensity <- (sum(tmpdt$JH_Numerator)) / (TotalArea)^2
+ 
+# STEP 4) CV = sqrt of variance from step 3 / mean from step 2
+
+ CV_Mean_Wt_Density <- (sqrt(Var_WtMeanDensity) / Mean_Wt_Density_gm2)*100
+ 
+ # STEP 5) compute extrapolated biomass estimate as mean from step 2 * area to which extrapolation applies
+ 
+ biomass_extra_StrataMax <- Mean_Wt_Density_gm2 * Area_of_Extrapolation_StrataMax
+ biomass_extra_AMLR <- Mean_Wt_Density_gm2 * Area_of_Extrapolation_AMLR
+ 
+ # STEP 6) compute variance of estimate from step 5 as variance from step 3 * (area to which extrapolation applies)^2
+ 
+ var_biomass_extra_StrataMax <- Var_WtMeanDensity *(Area_of_Extrapolation_StrataMax^2)
+ var_biomass_extra_AMLR <- Var_WtMeanDensity *(Area_of_Extrapolation_AMLR^2)
+
+ # STEP 7) CV_of_TotalBiomass = sqrt of variance from step 6 / biomass estimate from step 5
+ 
+ `CV Strata Biomass %` <- (sqrt(var_biomass_extra_StrataMax) / biomass_extra_StrataMax)*100
+ `CV AMLR Biomass %` <- (sqrt(var_biomass_extra_AMLR) / biomass_extra_AMLR)*100
+ 
+ tmpstats <- as.data.frame(cbind(Strata= st_name, 
+                                 N = nrow(tmpdt), 
+                                 `Density gm2` = round(Mean_Wt_Density_gm2, digits=2),
+                                 `Var Wt Density` = round(Var_WtMeanDensity, digits=2),
+                                 `CV Wt Density %` = round(CV_Mean_Wt_Density, digits=2),
+                                 
+                                 `Strata Area` = round(Area_of_Extrapolation_StrataMax, digits=0),
+                                 `Strata Biomass T km-2` = round(biomass_extra_StrataMax, digits = 0),
+                                 `CV Strata Biomass %` = round(`CV Strata Biomass %`, digits=2),
+                                 
+                                 `Strata Area AMLR` = round(Area_of_Extrapolation_AMLR, digits=0),
+                                 `AMLR Biomass T km-2` = round(biomass_extra_AMLR, digits = 0),
+                                 `CV AMLR Biomass %` = round(`CV AMLR Biomass %`, digits=2),
+                                 Years_included = yrcode))
+ 
+ subdtsum <- rbind(subdtsum, tmpstats)
+ 
+ }
+
+FinalTable <- rbind(FinalTable, subdtsum)
+
+kable(subdtsum) 
+```
+  
+\newpage  
+
+# All strata together  
+ 
+ Years available: `r unique(dt$Year_yyyy)` 
+ 
+ The strategy for combining all data is as before. All data is weighted by the survey area, however it is then extrapolated to a biomass for the entire survey area by summing the previous AMLR survey areas.  
+ 
+ The sum of the AMLR areas were used for a region wide survey biomass estimate as some of the surveys were already combined over large areas and there was considerable overlap.  
+
+```{r AllStrata, echo=FALSE, include=TRUE}
+
+st_name <- "All 48.1"
+
+# strata area is being calculated as the AMLR areas as these are 
+
+Area_of_Extrapolation_AMLR <- sum(AreaExtra[strata %in% c("W", "E", "S", "J")]$AMLR_Area)
+
+subdt <- dt2 # no subset - all of the data in area 48.1
+
+subdtsum <- NULL
+
+for(i in 1:length(yr_scenario)){
+  tmpyr <- yr_scenario[[i]]
+  yrcode <- names(yr_scenario[i])
+  tmpdt <- subdt[Year_yyyy %in% tmpyr]
+  
+  # STEP 2) compute weighted mean density using the survey areas as weights
+  
+  TotalArea <- sum(tmpdt$Survey_area_km2)
+  
+  tmpdt <- tmpdt[, AreaWeighting := Survey_area_km2/TotalArea]
+  
+  Mean_Wt_Density_gm2 <- weighted.mean(x = tmpdt$Density_gm2, w = tmpdt$AreaWeighting)
+  
+  # Calculate Variance of survey density - this was calculated earlier in the code so commented out
+  
+ #tmpdt <- tmpdt[, Var_Density := (Density_gm2*(CV_of_density_Perc/100))^2]
+ 
+ 
+ # STEP 3) compute the variance of the weighted mean density using equation 3 in Jolly and Hampton (1990)
+ 
+ tmpdt <- tmpdt[, JH_Numerator := (Survey_area_km2^2 * Var_Density)]
+ 
+ Var_WtMeanDensity <- (sum(tmpdt$JH_Numerator)) / (TotalArea)^2
+ 
+# STEP 4) CV = sqrt of variance from step 3 / mean from step 2
+
+ CV_Mean_Wt_Density <- (sqrt(Var_WtMeanDensity) / Mean_Wt_Density_gm2)*100
+ 
+ # STEP 5) compute extrapolated biomass estimate as mean from step 2 * area to which extrapolation applies
+ 
+ biomass_extra_AMLR <- Mean_Wt_Density_gm2 * Area_of_Extrapolation_AMLR
+ 
+ # STEP 6) compute variance of estimate from step 5 as variance from step 3 * (area to which extrapolation applies)^2
+ 
+ var_biomass_extra_AMLR <- Var_WtMeanDensity *(Area_of_Extrapolation_AMLR^2)
+
+ # STEP 7) CV_of_TotalBiomass = sqrt of variance from step 6 / biomass estimate from step 5
+ 
+ `CV AMLR Biomass %` <- (sqrt(var_biomass_extra_AMLR) / biomass_extra_AMLR)*100
+ 
+ tmpstats <- as.data.frame(cbind(Strata= st_name, 
+                                 N = nrow(tmpdt), 
+                                 `Density gm2` = round(Mean_Wt_Density_gm2, digits=2),
+                                 `Var Wt Density` = round(Var_WtMeanDensity, digits=2),
+                                 `CV Wt Density %` = round(CV_Mean_Wt_Density, digits=2),
+                                 
+                                 `Strata Area` = NA,
+                                 `Strata Biomass T km-2` = NA,
+                                 `CV Strata Biomass %` = NA,
+                                 
+                                 `Strata Area AMLR` = round(Area_of_Extrapolation_AMLR, digits=0),
+                                 `AMLR Biomass T km-2` = round(biomass_extra_AMLR, digits = 0),
+                                 `CV AMLR Biomass %` = round(`CV AMLR Biomass %`, digits=2),
+                                 Years_included = yrcode))
+ 
+ subdtsum <- rbind(subdtsum, tmpstats)
+ 
+ }
+
+FinalTable <- rbind(FinalTable, subdtsum)
+
+kable(subdtsum) 
+```
+    
+
+
+\newpage  
+# Table of strata area biomass estimates  
+ 
+  "N"  = Number of surveys  
+  "Density gm2"  = Weighted mean density gm^-2^ across all surveys contributing (weighted by original survey area)  
+  "Var Wt Density"  = Variance of weighted mean density
+  "CV Wt Density %"  = Coefficient of Variation (percent) of weighted mean density   
+  "Strata Area"  = Maximum Area (km^2^) of any survey contributing to the calculation of Weighted mean density   
+  "Strata Area AMLR"  = Previous AMLR survey areas (km^2^) covering "Joinville", "Elephant Island", "Bransfield" and "West"  
+  "Strata Biomass T km-2"  = Biomass (Tones per km^2^) extrapolated to Maximum Strata area surveyed  
+  "CV Strata Biomass %" =  Coefficient of Variation (percent) of Biomass extrapolated to Maximum Strata area surveyed 
+  "AMLR Biomass T km-2"  = Biomass (Tones per km^2^) extrapolated to AMLR defined area surveyed - in the case of combined data this is the sum of areas covering "Joinville", "Elephant Island", "Bransfield" and "West" 
+  "CV AMLR Biomass %" = Coefficient of Variation (percent) of Biomass extrapolated to AMLR survey areas
+  "Years"  = see "Year codes" above  
+  
+```{r strata_table_stats, include=TRUE}
+NeatTable <- as.data.table(FinalTable)
+
+NeatTable <- NeatTable[, `Density gm2` := as.numeric(`Density gm2`)][
+                       , `Var Wt Density` := as.numeric(`Var Wt Density`)][
+                       , `CV Wt Density %` := as.numeric(`CV Wt Density %`)][
+                       , `Strata Area` := as.numeric(`Strata Area`)][
+                       , `Strata Area AMLR` := as.numeric(`Strata Area AMLR`)][
+                       , `Strata Biomass T km-2` := as.numeric(`Strata Biomass T km-2`)][
+                       , `CV Strata Biomass %` := as.numeric(`CV Strata Biomass %`)][
+                       , `AMLR Biomass T km-2` := as.numeric(`AMLR Biomass T km-2`)][
+                       , `CV AMLR Biomass %` := as.numeric(`CV AMLR Biomass %`)]
+
+knitr::kable(NeatTable)
+```
+
+
+
+
+# CCAMLR subarea 48.1  
+  
+This data has not been extrapolated to the entire CCAMLR sub area 48.1 as some decisions need to be made around how to do that given that some of the areas that  are not sampled are likely to be low density.
+  
+  To extrapolate to the Entire subarea as is would involve running code chunk 756 - 830 but replacing  
+    
+      Area_of_Extrapolation_AMLR <- sum(AreaExtra[strata %in% c("W", "E", "S", "J")]$AMLR_Area)
+      
+      with:
+      
+       Area_of_Extrapolation_AMLR <- 640583
+       
+  
+  In the interests of completion I have set up the code to run in the R markdown script BUT not included it in the final table.
+  
+```{r Extrapolation to Entire CCAMLR subarea 48.1, echo=FALSE, include=TRUE}
+
+st_name <- "CCAMLR48.1"
+
+# strata area is being calculated as the AMLR areas as these are 
+
+Area_of_Extrapolation_AMLR <- 640583
+
+subdt <- dt2 # no subset - all of the data in area 48.1
+
+subdtsum <- NULL
+
+for(i in 1:length(yr_scenario)){
+  tmpyr <- yr_scenario[[i]]
+  yrcode <- names(yr_scenario[i])
+  tmpdt <- subdt[Year_yyyy %in% tmpyr]
+  
+  # STEP 2) compute weighted mean density using the survey areas as weights
+  
+  TotalArea <- sum(tmpdt$Survey_area_km2)
+  
+  tmpdt <- tmpdt[, AreaWeighting := Survey_area_km2/TotalArea]
+  
+  Mean_Wt_Density_gm2 <- weighted.mean(x = tmpdt$Density_gm2, w = tmpdt$AreaWeighting)
+  
+  # Calculate Variance of survey density - this was calculated earlier in the code so commented out
+  
+ #tmpdt <- tmpdt[, Var_Density := (Density_gm2*(CV_of_density_Perc/100))^2]
+ 
+ 
+ # STEP 3) compute the variance of the weighted mean density using equation 3 in Jolly and Hampton (1990)
+ 
+ tmpdt <- tmpdt[, JH_Numerator := (Survey_area_km2^2 * Var_Density)]
+ 
+ Var_WtMeanDensity <- (sum(tmpdt$JH_Numerator)) / (TotalArea)^2
+ 
+# STEP 4) CV = sqrt of variance from step 3 / mean from step 2
+
+ CV_Mean_Wt_Density <- (sqrt(Var_WtMeanDensity) / Mean_Wt_Density_gm2)*100
+ 
+ # STEP 5) compute extrapolated biomass estimate as mean from step 2 * area to which extrapolation applies
+ 
+ biomass_extra_AMLR <- Mean_Wt_Density_gm2 * Area_of_Extrapolation_AMLR
+ 
+ # STEP 6) compute variance of estimate from step 5 as variance from step 3 * (area to which extrapolation applies)^2
+ 
+ var_biomass_extra_AMLR <- Var_WtMeanDensity *(Area_of_Extrapolation_AMLR^2)
+
+ # STEP 7) CV_of_TotalBiomass = sqrt of variance from step 6 / biomass estimate from step 5
+ 
+ `CV AMLR Biomass %` <- (sqrt(var_biomass_extra_AMLR) / biomass_extra_AMLR)*100
+ 
+ tmpstats <- as.data.frame(cbind(Strata= st_name, 
+                                 N = nrow(tmpdt), 
+                                 `Density gm2` = round(Mean_Wt_Density_gm2, digits=2),
+                                 `Var Wt Density` = round(Var_WtMeanDensity, digits=2),
+                                 `CV Wt Density %` = round(CV_Mean_Wt_Density, digits=2),
+                                 
+                                 `Strata Area` = NA,
+                                 `Strata Biomass T km-2` = NA,
+                                 `CV Strata Biomass %` = NA,
+                                 
+                                 `Strata Area AMLR` = round(Area_of_Extrapolation_AMLR, digits=0),
+                                 `AMLR Biomass T km-2` = round(biomass_extra_AMLR, digits = 0),
+                                 `CV AMLR Biomass %` = round(`CV AMLR Biomass %`, digits=2),
+                                 Years_included = yrcode))
+ 
+ subdtsum <- rbind(subdtsum, tmpstats)
+ 
+ }
+
+#FinalTable <- rbind(FinalTable, subdtsum)
+```
+
+### This is unwise as all of this area has not been sampled
+
+```{r CCAMLR Extrapolation data, include=FALSE}
+kable(subdtsum) 
+```  
+
+
+
+# Strata 2019  
+  
+Setting up codes to match the strata from 2019 synoptic survey.  
+
+One that was unclear was a Stratum name of 'South' which has been coded as "Bransfield".  
+
+Areas need to be defined for these and then code can be looped through the unique strata2019 codes to produce biomass estimates as above.  
+
+
+```{r s2019, echo=TRUE, include=TRUE}
+
+s2019 <- mdat
+
+knitr::kable(s2019[, .(n=.N,
+                       strata = unique(strata)),
+                   by=Stratum_name])
+
+s2019 <- s2019[Stratum_name=="WCB", strata19 := "WCB"][Stratum_name=="ECB", strata19 := "ECB"][Stratum_name %in% c("South Georgia", "SG") , strata19 := "SG"][Stratum_name %in% c("Elephant Island", "Elephant Island (EL)") , strata19 := "Elephant"][Stratum_name %in% c("West", "South Shetland Islands North"), strata19 := "West"][Stratum_name=="South", strata19 := "Bransfield"][Stratum_name=="Joinville", strata19 := "Joinville"][Stratum_name %in% c("ESS", "entire survey area"), strata19 := "ESS"][Stratum_name %in% c("South Orkney Island (SOI)", "South Orkneys", "SOI"), strata19 := "SOI"][Stratum_name %in% c("Bransfield","Bransfield Strait (BS)"), strata19 := "Bransfield"][Stratum_name=="AP", strata19 := "AP"][Stratum_name=="SS", strata19 := "SS"][Stratum_name %in% c("SSI","South Shetland Island (SSI)"), strata19 := "SSI"][Stratum_name=="Sand", strata19 := "Sand"][Stratum_name=="SOF", strata19 := "SOF"][Stratum_name=="SOC", strata19 := "SOC"][Stratum_name=="Scotia Sea (SS)", strata19 := "SS"]
+
+
+knitr::kable(s2019[, .(n=.N,
+                       strata = unique(strata),
+                       strata19 = unique(strata19)),
+                   by=Stratum_name])
+
+
+# unique strata to assess biomass
+strata_id <- unique(s2019$strata19)
+
+
+```
+
+
+
