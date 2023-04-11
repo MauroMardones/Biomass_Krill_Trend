@@ -82,7 +82,7 @@ time series of the environmental variable to incorporate into the stock assessme
 # METODOLOGY
 
 ### Read data and code provided by  WG-EMM-2021/05 Rev.
-Differente pachakes used like @Yuhui2023, @Ludecke2021, @Report2023. 
+Different packages was used  in this report like @Yuhui2023, @Ludecke2021, @Report2023. 
 
 
 
@@ -1458,7 +1458,9 @@ biot <- ggplot(biomasto,
 biot
 ```
 
-<img src="index_files/figure-html/unnamed-chunk-13-1.png" style="display: block; margin: auto;" />
+<img src="index_files/figure-html/unnamed-chunk-13-1.png" width="60%" style="display: block; margin: auto;" />
+
+
 # NEXT STEP
 
 - Biomass vector to add in stock assessment model as index relative about biomass with Catchability. Catchability patterns indicate that the catchability coefficient has been used in two main lines: (a) increased efficiency of fishing effort and (b) its relation to population fishery processes for assessment and management purposes. It involves various aspects of the fishery, such as individual and population biology, characteristics of the fishing gear, amount of fishing, fishing strategies, and environmental fluctuation, among others-
