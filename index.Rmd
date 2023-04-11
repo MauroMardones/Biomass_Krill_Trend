@@ -73,16 +73,33 @@ population dynamics of krill (*Euphausia superba*), in this case, with a index o
 
 Once the correlation and effects on the population and/or fishing
 indicators on krill have been verified, this analysis aims to have a
-time series of the environmental variable to incorporate into the stock
-assessment process. Similar work in @Wang2021 but with a longest fishery history.
+time series of the environmental variable to incorporate into the stock assessment process. Similar work in @Wang2021 but with a longest fishery history and adding environmental and predator data.
 
 
 # METODOLOGY
 
 ### Read data and code provided by  WG-EMM-2021/05 Rev.
+Differente pachakes used like @Yuhui2023, @Ludecke2021, @Report2023. 
 
-````{r}
+```{r echo=FALSE}
+# Define preferred figure format
+
+My_theme <- theme(axis.text.y = element_blank(),
+                  axis.ticks.y = element_blank(),
+                  axis.ticks.x=element_blank(),
+                  panel.background = element_blank(),
+                  panel.border = element_rect(fill = NA, size =  1),
+                  strip.background = element_rect(fill = "white", 
+                                                  color = "white", size = 1),
+                  text = element_text(size = 14),
+                  panel.grid.major = element_line(colour = "white", size = 0.1),
+                  panel.grid.minor = element_line(colour = "white", size = 0.1))
+```
+
+
+```{r}
 mdat <- read.csv("ASAM_metadata_2021_v2_tidy_0.csv")
+names(mdat)
 ```
 
 ### Tidy and inspect file structure
@@ -96,7 +113,7 @@ mdat <- read.csv("ASAM_metadata_2021_v2_tidy_0.csv")
 
 Set names to be more R Friendly 
 
-```{r data inspection, include=TRUE}
+```{r data inspection, include=TRUE, echo=FALSE}
 #names(mdat)
 # print table of metadata column names and R coding names
 knitr::kable(as.data.frame(cbind(`Metadata Table Names`=names(mdat), 
@@ -242,7 +259,7 @@ Strata that were assigned a code based on the area they matched best.
 
 Surveys which overlapped multiple areas were assigned combined codes.
 
-```{r strata_filter, echo=TRUE}
+```{r echo=TRUE}
 unique(mdat$Stratum_name)
 ```
 
@@ -304,15 +321,14 @@ As analysis requires Density CV and Area for weighted density calculations:
  
 ### Density 
 
-Miramos los datos de densidades
-
+Take look densities
 
 ```{r inspect dens, include=TRUE}
 unique(mdat$Density_gm2)
 ```
 
 
-```{r hdba, warning=F, include=T, message=F, echo=FALSE,fig.height=7,fig.width=9,fig.align="center",fig.path=dir.Fig,dev=fig, fig.cap="Histo Dens by Area"}
+```{r hdba}
 mdat$Density_gm2<- as.double(mdat$Density_gm2)
 h <- ggplot(mdat, aes(x=as.double(Density_gm2)))+
   geom_histogram(binwidth=5, show.legend = FALSE, fill=2)+
@@ -374,8 +390,7 @@ unique(mdat$Stratum_name)
 ```
 
 
-```{r strata_filter, echo=TRUE}
-
+```{r echo=TRUE}
 mdat$strata[mdat$Stratum_name%in%c("Elephant Island", "Elephant Island (EL)")] <- "E"    
 mdat$strata[mdat$Stratum_name%in%c("Joinville")] <- "J"    
 mdat$strata[mdat$Stratum_name%in%c("South", "Bransfield",  "Bransfield Strait (BS)")] <- "S"    
@@ -387,43 +402,168 @@ mdat$strata[mdat$Stratum_name%in%c("SSI")] <- "With_AP_is_WESJ"
 table(mdat$strata)
 # test NA Data
 colSums(is.na(mdat))
+
+# drop NA in Strata
+mdat1 <- mdat %>% 
+  drop_na()
 ```
+
 ```{r densidad by strata, warning=F}
-destra <- ggplot(mdat , 
+destra <- ggplot(mdat1, 
                  aes(x=Year_yyyy, 
-                     y=as.double(mdat$Density_gm2),
+                     y=as.double(mdat1$Density_gm2),
                      color=TS_Id_Method)) +
   geom_point() +
-  geom_smooth(method = "loess", colour='red', fill='red', alpha=.3)+
-  scale_x_continuous(breaks = seq(from = 190, to = 2020, by = 4))+
-  scale_color_viridis_d(option = "F")+
+  geom_smooth(method = "loess", colour='grey', fill='grey', alpha=.3)+
+  scale_x_continuous(breaks = seq(from = 1990, to = 2020, by = 2))+
+  scale_color_viridis_d(option = "E")+
   theme_bw()+
-  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9))+
-  facet_wrap(~strata, ncol =4)+
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9),
+        panel.grid.major = element_line(colour = "white", size = 0.1),
+        panel.grid.minor = element_line(colour = "white", size = 0.1))+
+  facet_wrap(~strata, ncol =3)+
   ggtitle('Density Krill Survey (gr.)')+
   ylim(0,200)+
-  xlim(1990,2021)
-
-
+  labs(y="Density (gr.)",
+       x= "")
 destra
-
 ```
+```{r densid, warning=F}
+destra <- ggplot(mdat1, 
+                 aes(x=Year_yyyy, 
+                     y=as.double(mdat1$Density_gm2),
+                     color=Depth_range_integrated_m)) +
+  geom_point() +
+  geom_smooth(method = "loess", 
+              colour='grey', 
+              fill='grey', alpha=.3)+
+  scale_x_continuous(breaks = seq(from = 1990, to = 2020, by = 2))+
+  scale_color_viridis_d(option = "D",
+                        name="Deep Range")+
+  theme_bw()+
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9),
+        panel.grid.major = element_line(colour = "white", size = 0.1),
+        panel.grid.minor = element_line(colour = "white", size = 0.1))+
+  facet_wrap(~strata, ncol =3)+
+  ggtitle('Density Krill Survey (gr.)')+
+  ylim(0,200)+
+  labs(y="Density (gr.)",
+       x= "")
+destra
+```
+Some statistics descriptive
+
+```{r}
+library(pastecs)
+descrs <- stat.desc(mdat[,c(7,8, 12)])
+kable(descrs,
+      format="html",
+      digits = 3)
+
+skimr::skim(mdat)
+```
+In this part we star to work with procesed data from WG-EEM-21
+
+## Biomass data
 Load Biomass depured data
 
 ```{r}
 bioma <- read_csv("krill_biomass_acoustic_survey.csv")
-names(bioma)
+View(bioma)
+
+```
+Some statistics to biomass calculation
+
+
+```{r}
+descrsbio <- stat.desc(bioma[,c(-1)])
+kable(descrsbio,
+      format="html",
+      digits = 3)
+
+skimr::skim(bioma)
+
 ```
 
 
+Plotr biomass calculation by Strata
+```{r}
+strbio <-ggplot(bioma)+ 
+  geom_col(aes(Year, stratabiomass/1000,
+               fill=Strata))+
+  facet_wrap(.~Strata,
+             scales = "free_y",
+             ncol=3)+
+  scale_fill_viridis_d(option="B")+
+  scale_x_continuous(breaks = seq(from = 1990, to = 2020, by = 3))+
+  theme_bw() +
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9),
+        panel.grid.major = element_line(colour = "white", size = 0.1),
+        panel.grid.minor = element_line(colour = "white", size = 0.1),
+        legend.position = "none")+
+  labs(y="Biomass (t) /1000")
+strbio
+```
+
+Another important parameters is el CV. 
+
+
+```{r warning=FALSE}
+cvbio <-ggplot(bioma, aes(Year, cvbiomass,
+               color=Strata))+ 
+  geom_point()+
+  geom_smooth(method = "loess", colour='grey', fill='grey', alpha=.3)+
+  facet_wrap(.~Strata,
+             ncol=3)+
+  scale_color_viridis_d(option="B")+
+  scale_x_continuous(breaks = seq(from = 1990, to = 2020, by = 3))+
+  theme_bw() +
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9),
+        panel.grid.major = element_line(colour = "white", size = 0.1),
+        panel.grid.minor = element_line(colour = "white", size = 0.1),
+        legend.position = "none")+
+  labs(y="CV (%) Survey")+
+  ylim(0,100)
+cvbio
+
+
+```
+Sum of biomass considering strata and year.
+
+```{r}
+biomasto <- bioma %>% 
+  group_by(Year) %>% 
+  dplyr::summarise(biot=sum(stratabiomass),
+                   cvto=mean(cvbiomass))
+```
+write a `csv` output with biomass and CV
+
+```{r eval=FALSE}
+write_csv(biomasto, "biomasa481.csv")
+```
+ 
+ last plot with total
+
+```{r}
+# plot
+biot <- ggplot(biomasto,
+               aes(Year, biot/1000))+
+  geom_point()+
+  geom_smooth()+
+  theme_bw()+
+  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9),
+        panel.grid.major = element_line(colour = "white", size = 0.1),
+        panel.grid.minor = element_line(colour = "white", size = 0.1))+
+  scale_x_continuous(breaks = seq(from = 1990, to = 2020, by = 1))+
+  labs(y="Biomass St *1000  (t)",
+       x="")
+biot
+```
+# NEXT STEP
+
+- Biomass vector to add in stock assessment model as index relative about biomass with Catchability. Catchability patterns indicate that the catchability coefficient has been used in two main lines: (a) increased efficiency of fishing effort and (b) its relation to population fishery processes for assessment and management purposes. It involves various aspects of the fishery, such as individual and population biology, characteristics of the fishing gear, amount of fishing, fishing strategies, and environmental fluctuation, among others-
+
+- Another component relevant is CV, because this uncertainty must  be add in stock assesment.
 
 # REFERENCES
 
-Packages used: 
- 
-    Matt Dowle and Arun Srinivasan (2020). data.table: Extension of `data.frame`. R package version 1.13.4.
-    https://CRAN.R-project.org/package=data.table  
-   
-    Hadley Wickham (2016). ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York.  
-   
-    Yihui Xie (2020). knitr: A General-Purpose Package for Dynamic Report Generation in R. R package version 1.30.   
