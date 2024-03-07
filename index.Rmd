@@ -1,6 +1,6 @@
 ---
-title: "Data estimates biomass AMLR data"
-subtitle: "Alternative Analysis to incorporate in Krill Stock Assessment Model 48.1 SubArea"
+title: "Data estimates biomass AMLR data by "
+subtitle: "Complemetnary analysis to incorporate in Krill Stock Assessment Model 48.1 SubArea"
 author: "Mardones, M; Watters, G.; Cárdenas, C."
 date:  "`r format(Sys.time(), '%d %B, %Y')`"
 bibliography: biomass.bib
