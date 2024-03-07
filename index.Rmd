@@ -52,6 +52,9 @@ library(raster)
 library(dbplyr)
 library(knitr)
 library(data.table)
+library(ggthemes)
+library(egg)
+library(ggrepel)
 ```
 
 
@@ -81,19 +84,22 @@ time series of the environmental variable to incorporate into the stock assessme
 ### Read data and code provided by  WG-EMM-2021/05 Rev.
 Different packages was used  in this report like @Yuhui2023, @Ludecke2021, @Report2023. 
 
-```{r echo=FALSE}
+```{r warning=FALSE}
 # Define preferred figure format
-
 My_theme <- theme(axis.text.y = element_blank(),
                   axis.ticks.y = element_blank(),
                   axis.ticks.x=element_blank(),
                   panel.background = element_blank(),
-                  panel.border = element_rect(fill = NA, size =  1),
+                  panel.border = element_rect(fill = NA, 
+                                              size =  1),
                   strip.background = element_rect(fill = "white", 
-                                                  color = "white", size = 1),
+                                                  color = "white", 
+                                                  size = 1),
                   text = element_text(size = 14),
-                  panel.grid.major = element_line(colour = "white", size = 0.1),
-                  panel.grid.minor = element_line(colour = "white", size = 0.1))
+                  panel.grid.major = element_line(colour = "white", 
+                                                  size = 0.1),
+                  panel.grid.minor = element_line(colour = "white", 
+                                                  size = 0.1))
 ```
 
 
@@ -464,7 +470,7 @@ skimr::skim(mdat)
 ```
 In this part we star to work with procesed data from WG-EEM-21
 
-## Biomass data
+# Biomass Depured Data
 Load Biomass depured data
 
 ```{r}
@@ -488,20 +494,23 @@ skimr::skim(bioma)
 
 Plotr biomass calculation by Strata
 ```{r}
-strbio <-ggplot(bioma)+ 
-  geom_col(aes(Year, stratabiomass/1000,
-               fill=Strata))+
+strbio <-ggplot(bioma%>% 
+                 filter(Strata != "WestElephant(AP)"), 
+                aes(Year,
+                    stratabiomass,
+               fill=Strata))+ 
+  geom_col()+
   facet_wrap(.~Strata,
-             scales = "free_y",
-             ncol=3)+
-  scale_fill_viridis_d(option="B")+
-  scale_x_continuous(breaks = seq(from = 1990, to = 2020, by = 3))+
-  theme_bw() +
+             ncol=1)+
+  scale_fill_viridis_d(option="D")+
+  scale_x_continuous(breaks = seq(from = 1990, to = 2020, by = 1))+
+  scale_y_continuous(labels = scales::number_format()) +
+  theme_few() +
   theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9),
         panel.grid.major = element_line(colour = "white", size = 0.1),
         panel.grid.minor = element_line(colour = "white", size = 0.1),
         legend.position = "none")+
-  labs(y="Biomass (t) /1000")
+  labs(y="Biomass (t)")
 strbio
 ```
 
@@ -509,37 +518,53 @@ Another important parameters is el CV.
 
 
 ```{r warning=FALSE}
-cvbio <-ggplot(bioma, aes(Year, cvbiomass,
+cvbio <-ggplot(bioma %>% 
+                 filter(Strata != "WestElephant(AP)"),
+               aes(Year, cvbiomass,
                color=Strata))+ 
   geom_point()+
-  geom_smooth(method = "loess", colour='grey', fill='grey', alpha=.3)+
   facet_wrap(.~Strata,
-             ncol=3)+
-  scale_color_viridis_d(option="B")+
-  scale_x_continuous(breaks = seq(from = 1990, to = 2020, by = 3))+
-  theme_bw() +
-  theme(axis.text.x  = element_text(angle=90, vjust=0.5, size=9),
-        panel.grid.major = element_line(colour = "white", size = 0.1),
-        panel.grid.minor = element_line(colour = "white", size = 0.1),
+             ncol=1)+
+  scale_color_viridis_d(option="D")+
+  scale_x_continuous(breaks = seq(from = 1990, 
+                                  to = 2020, 
+                                  by = 1))+
+  geom_text_repel(aes(label = round(cvbiomass,1)),
+                  size = 1.5,
+                  color="black")+
+  theme_few() +
+  theme(axis.text.x  = element_text(angle=90, 
+                                    vjust=0.5, 
+                                    size=9),
+        panel.grid.major = element_line(colour = "white", 
+                                        size = 0.1),
+        panel.grid.minor = element_line(colour = "white", 
+                                        size = 0.1),
         legend.position = "none")+
   labs(y="CV (%) Survey")+
   ylim(0,100)
 cvbio
 
-
 ```
+
+JOin maps
+
+```{r warning=FALSE, message=FALSE, fig.height=4, fig.width=4}
+ggarrange(strbio, cvbio, ncol = 2)
+```
+
 Sum of biomass considering strata and year.
 
 ```{r}
 biomasto <- bioma %>% 
-  group_by(Year) %>% 
+  group_by(Strata, Year) %>% 
   dplyr::summarise(biot=sum(stratabiomass),
                    cvto=mean(cvbiomass))
 ```
 write a `csv` output with biomass and CV
 
 ```{r eval=FALSE}
-write_csv(biomasto, "biomasa481.csv")
+write_csv(biomasto, "biomassurvey.csv")
 ```
  
  last plot with total
@@ -547,7 +572,7 @@ write_csv(biomasto, "biomasa481.csv")
 ```{r  out.width = '60%'}
 # plot
 biot <- ggplot(biomasto,
-               aes(Year, biot/1000))+
+               aes(Year, biot))+
   geom_point()+
   geom_smooth()+
   theme_bw()+
@@ -557,7 +582,7 @@ biot <- ggplot(biomasto,
   scale_x_continuous(breaks = seq(from = 1990, to = 2020, by = 1))+
   labs(y="Biomass St *1000  (t)",
        x="")
-biot
+
 ```
 
 
