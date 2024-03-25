@@ -473,6 +473,7 @@ In this part we star to work with procesed data from WG-EEM-21
 # Biomass Depured Data
 Load Biomass depured data
 
+
 ```{r}
 bioma <- read_csv("krill_biomass_acoustic_survey.csv")
 View(bioma)
