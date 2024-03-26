@@ -503,7 +503,7 @@ strbio <-ggplot(bioma%>%
   geom_col()+
   facet_wrap(.~Strata,
              ncol=1)+
-  scale_fill_viridis_d(option="D")+
+  scale_fill_viridis_d(option="F")+
   scale_x_continuous(breaks = seq(from = 1990, to = 2020, by = 1))+
   scale_y_continuous(labels = scales::number_format()) +
   theme_few() +
@@ -526,7 +526,7 @@ cvbio <-ggplot(bioma %>%
   geom_point()+
   facet_wrap(.~Strata,
              ncol=1)+
-  scale_color_viridis_d(option="D")+
+  scale_color_viridis_d(option="F")+
   scale_x_continuous(breaks = seq(from = 1990, 
                                   to = 2020, 
                                   by = 1))+
@@ -542,6 +542,9 @@ cvbio <-ggplot(bioma %>%
         panel.grid.minor = element_line(colour = "white", 
                                         size = 0.1),
         legend.position = "none")+
+  geom_hline(yintercept = 30,
+             col="red",
+             linetype="dashed")
   labs(y="CV (%) Survey")+
   ylim(0,100)
 cvbio
@@ -550,7 +553,7 @@ cvbio
 
 JOin maps
 
-```{r warning=FALSE, message=FALSE, fig.height=4, fig.width=4}
+```{r warning=FALSE, message=FALSE, fig.height=4, fig.width=3}
 ggarrange(strbio, cvbio, ncol = 2)
 ```
 
